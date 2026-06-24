@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model UserProfile {
+  id                        String   @id @default(cuid())
+  name                      String   @default("")
+  age                       Int      @default(30)
+  sex                       String   @default("other")
+  heightCm                  Float    @default(170)
+  weightKg                  Float    @default(70)
+  goalWeightKg              Float?
+  activityLevel             String   @default("moderate")
+  healthGoal                String   @default("maintain")
+  strictness                String   @default("moderate")
+  targetCalories            Int?
+  targetProtein             Int?
+  targetCarbs               Int?
+  targetFats                Int?
+  targetFiber               Int?
+  targetSodium              Int?
+  targetSugar               Int?
+  targetWaterMl             Int?
+  supplements               String   @default("[]")
+  avoidGmo                  Boolean  @default(false)
+  allergies                 String   @default("[]")
+  foodsToAvoid              String   @default("[]")
+  ingredientClassesToAvoid  String   @default("[]")
+  avoidSeedOils             Boolean  @default(false)
+  scoreEatThreshold         Int      @default(80)
+  scoreCautionThreshold     Int      @default(55)
+  onboardingComplete        Boolean  @default(false)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  mealLogs     MealLog[]
+  weightLogs   WeightEntry[]
+  savedMeals   SavedMeal[]
+  waterLogs    WaterLog[]
+}
+
+model WaterLog {
+  id         String   @id @default(cuid())
+  profileId  String
+  amountMl   Int
+  recordedAt DateTime @default(now())
+  profile    UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, recordedAt])
+}
+
+model WeightEntry {
+  id         String   @id @default(cuid())
+  profileId  String
+  weightKg   Float
+  recordedAt DateTime @default(now())
+  profile    UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, recordedAt])
+}
+
+model RestaurantKnowledge {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  sodiumLevel  String   @default("moderate")
+  gmoRisk      String   @default("unknown")
+  processingLevel String @default("moderate")
+  notes        String   @default("")
+  tips         String   @default("[]")
+  createdAt    DateTime @default(now())
+
+  @@index([name])
+}
+
+model FoodCatalog {
+  id            String   @id @default(cuid())
+  name          String
+  brand         String?
+  barcode       String?  @unique
+  servingSize   String?
+  servingGrams  Float?
+  calories      Float    @default(0)
+  protein       Float    @default(0)
+  carbs         Float    @default(0)
+  fats          Float    @default(0)
+  saturatedFat  Float    @default(0)
+  sugar         Float    @default(0)
+  addedSugar    Float    @default(0)
+  fiber         Float    @default(0)
+  sodium        Float    @default(0)
+  cholesterol   Float    @default(0)
+  micronutrients String  @default("{}")
+  ingredients   String   @default("")
+  source        String   @default("manual")
+  createdAt     DateTime @default(now())
+
+  @@index([name])
+  @@index([barcode])
+}
+
+model MealLog {
+  id               String   @id @default(cuid())
+  profileId        String
+  timestamp        DateTime @default(now())
+  mealType         String   @default("snack")
+  mealOrigin       String?
+  restaurantName   String?
+  portionMethod    String?
+  sourceType       String
+  foodName         String
+  brand            String?
+  servings         Float    @default(1)
+  servingSize      String?
+  photoUrl         String?
+  confidence       Float    @default(1)
+  isEstimated      Boolean  @default(false)
+  calories         Float    @default(0)
+  protein          Float    @default(0)
+  carbs            Float    @default(0)
+  fats             Float    @default(0)
+  saturatedFat     Float    @default(0)
+  sugar            Float    @default(0)
+  addedSugar       Float    @default(0)
+  fiber            Float    @default(0)
+  sodium           Float    @default(0)
+  cholesterol      Float    @default(0)
+  micronutrients   String   @default("{}")
+  ingredients      String   @default("")
+  ingredientFlags  String   @default("[]")
+  decisionScore    Int      @default(0)
+  decisionVerdict  String   @default("caution")
+  decisionReasons  String   @default("[]")
+  forYouSummary    String?
+  userCorrections  String?
+  rawData          String?
+  profile          UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, timestamp])
+}
+
+model SavedMeal {
+  id        String   @id @default(cuid())
+  profileId String
+  name      String
+  items     String
+  createdAt DateTime @default(now())
+  profile   UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}

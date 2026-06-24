@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --color-brand: #171717;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    overscroll-behavior: none;
+  }
+
+  .pt-safe-top {
+    padding-top: max(env(safe-area-inset-top), 12px);
+  }
+
+  .pb-safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 8px);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+@media print {
+  nav, .no-print {
+    display: none !important;
+  }
+}
