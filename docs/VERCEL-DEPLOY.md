@@ -24,9 +24,18 @@ Apply to **Production**, **Preview**, and **Development**.
 
 Push to GitHub or click **Redeploy** in Vercel.
 
-The build runs `prisma db push` automatically to create tables on first deploy.
+The build no longer runs `prisma db push` (that often fails on Vercel + Neon and blocks deploy).
 
-## 4. Seed restaurant data (optional, one time)
+## 4. Create database tables (one time, from your PC)
+
+Copy `DATABASE_URL` from Vercel → Settings → Environment Variables into your local `.env`, then:
+
+```bash
+npm run db:push
+npm run db:seed
+```
+
+## 5. Seed restaurant data (optional)
 
 From your machine with `DATABASE_URL` set to the same Neon URL:
 
