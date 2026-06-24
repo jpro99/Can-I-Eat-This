@@ -5,6 +5,7 @@ import type { Supplement, DailyRoutine, UserProfileData } from "@/types";
 import { parseJsonArray } from "@/lib/utils";
 import { DEFAULT_DAILY_ROUTINES } from "@/lib/routines/defaults";
 import { parseKitchenMemory } from "@/lib/kitchen/defaults";
+import { parseWaterVessels } from "@/lib/water/vessels";
 import { normalizeProfile } from "@/lib/profile/normalize";
 
 function parseSupplements(value: string): Supplement[] {
@@ -57,6 +58,13 @@ export function mapProfile(profile: UserProfile): UserProfileData {
     onboardingComplete: profile.onboardingComplete,
     dailyRoutines: parseDailyRoutines(profile.dailyRoutines),
     kitchenMemory: parseKitchenMemory(profile.kitchenMemory),
+    waterVessels: parseWaterVessels(
+      "waterVessels" in profile ? (profile as UserProfile & { waterVessels?: string }).waterVessels : undefined
+    ),
+    defaultWaterVesselId:
+      "defaultWaterVesselId" in profile
+        ? (profile as UserProfile & { defaultWaterVesselId?: string | null }).defaultWaterVesselId
+        : null,
   });
 }
 
@@ -94,6 +102,8 @@ export function profileToDbFields(data: Partial<UserProfileData>) {
     ...(data.onboardingComplete !== undefined && { onboardingComplete: data.onboardingComplete }),
     ...(data.dailyRoutines !== undefined && { dailyRoutines: JSON.stringify(data.dailyRoutines) }),
     ...(data.kitchenMemory !== undefined && { kitchenMemory: JSON.stringify(data.kitchenMemory) }),
+    ...(data.waterVessels !== undefined && { waterVessels: JSON.stringify(data.waterVessels) }),
+    ...(data.defaultWaterVesselId !== undefined && { defaultWaterVesselId: data.defaultWaterVesselId }),
   };
 }
 

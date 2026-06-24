@@ -367,6 +367,17 @@ export interface UserProfileData {
   onboardingComplete: boolean;
   dailyRoutines: DailyRoutine[];
   kitchenMemory: KitchenMemory;
+  waterVessels: WaterVessel[];
+  defaultWaterVesselId?: string | null;
+}
+
+/** A cup/glass photographed once — reused for quick water logging */
+export interface WaterVessel {
+  id: string;
+  name: string;
+  volumeFlOz: number;
+  photoSetupComplete: boolean;
+  createdAt: string;
 }
 
 export interface DailyCoachContext {

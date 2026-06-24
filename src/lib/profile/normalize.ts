@@ -58,5 +58,7 @@ export function normalizeProfile(data: Partial<UserProfileData> & { id?: string 
         ? data.dailyRoutines
         : DEFAULT_DAILY_ROUTINES,
     kitchenMemory: ensureKitchenMemory(data.kitchenMemory),
+    waterVessels: Array.isArray(data.waterVessels) ? data.waterVessels : [],
+    defaultWaterVesselId: data.defaultWaterVesselId ?? null,
   };
 }

@@ -16,19 +16,20 @@ import { MicronutrientPanel } from "@/components/coach/MicronutrientPanel";
 import { QuickRoutines } from "@/components/today/QuickRoutines";
 import { KitchenPredictions } from "@/components/today/KitchenPredictions";
 import { ActivityTracker } from "@/components/fitness/ActivityTracker";
+import { WaterLogSheet } from "@/components/water/WaterLogSheet";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { DailySummary } from "@/types";
 import { useProfile } from "@/hooks/useProfile";
-import { GLASS_WATER_ML } from "@/lib/units/us";
 import { getGreeting } from "@/lib/utils";
 import { Mic, ScanBarcode, Clock } from "lucide-react";
 
 export default function TodayPage() {
-  const { profile } = useProfile();
+  const { profile, update } = useProfile();
   const [summary, setSummary] = useState<DailySummary | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [recent, setRecent] = useState<{ foodName: string; id: string }[]>([]);
+  const [waterSheetOpen, setWaterSheetOpen] = useState(false);
 
   const load = async () => {
     setLoadError(null);
@@ -54,14 +55,7 @@ export default function TodayPage() {
     load();
   }, []);
 
-  const logWater = async (amountMl: number) => {
-    await fetch("/api/water", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amountMl }),
-    });
-    load();
-  };
+  const openWaterLog = () => setWaterSheetOpen(true);
 
   const firstName = profile?.name.split(" ")[0];
   const isDayStart =
@@ -111,7 +105,7 @@ export default function TodayPage() {
         <QuickRoutines
           routines={profile.dailyRoutines ?? []}
           onLogged={load}
-          onLogWater={() => logWater(GLASS_WATER_ML)}
+          onLogWater={openWaterLog}
           firstName={firstName}
           showMorningPrompt={!!isDayStart}
         />
@@ -122,7 +116,7 @@ export default function TodayPage() {
           {summary.insights && (
             <CoachInsights
               insights={summary.insights}
-              onLogWater={() => logWater(GLASS_WATER_ML)}
+              onLogWater={openWaterLog}
               isDayStart={!!isDayStart}
             />
           )}
@@ -131,7 +125,9 @@ export default function TodayPage() {
             <WaterTracker
               consumedMl={summary.waterConsumedMl}
               targetMl={summary.waterTargetMl}
-              onLog={logWater}
+              vessels={profile?.waterVessels}
+              defaultVesselId={profile?.defaultWaterVesselId}
+              onOpenLog={openWaterLog}
             />
           )}
 
@@ -236,6 +232,17 @@ export default function TodayPage() {
             </>
           )}
         </>
+      )}
+      {waterSheetOpen && profile && (
+        <WaterLogSheet
+          vessels={profile.waterVessels ?? []}
+          defaultVesselId={profile.defaultWaterVesselId}
+          onClose={() => setWaterSheetOpen(false)}
+          onLogged={load}
+          onVesselsChange={async (vessels, defaultVesselId) => {
+            await update({ waterVessels: vessels, defaultWaterVesselId: defaultVesselId });
+          }}
+        />
       )}
     </AppShell>
   );

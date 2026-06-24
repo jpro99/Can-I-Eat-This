@@ -39,6 +39,7 @@ const baseProfile: UserProfileData = {
     spiceSets: [],
     mealTemplates: [],
   },
+  waterVessels: [],
 };
 
 describe("Caveman Score", () => {

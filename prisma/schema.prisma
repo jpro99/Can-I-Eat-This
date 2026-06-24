@@ -37,6 +37,8 @@ model UserProfile {
   onboardingComplete        Boolean  @default(false)
   dailyRoutines             String   @default("[]")
   kitchenMemory             String   @default("{}")
+  waterVessels              String   @default("[]")
+  defaultWaterVesselId      String?
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 

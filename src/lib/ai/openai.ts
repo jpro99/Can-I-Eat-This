@@ -2,7 +2,7 @@
 
 import OpenAI from "openai";
 import type { FoodAnalysis, MealContext, PlateItem } from "@/types";
-import { LABEL_OCR_PROMPT, plateAnalysisPromptWithContext, VOICE_MEAL_PROMPT } from "@/lib/ai/prompts";
+import { LABEL_OCR_PROMPT, plateAnalysisPromptWithContext, VOICE_MEAL_PROMPT, CUP_VOLUME_PROMPT } from "@/lib/ai/prompts";
 
 function getClient() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -294,5 +294,44 @@ function voiceFallback(transcript: string): FoodAnalysis {
     confidence: 0.5,
     isEstimated: true,
     sourceType: "voice",
+  };
+}
+
+export async function analyzeCupVolume(imageBase64: string): Promise<{
+  estimatedFlOz: number;
+  cupDescription: string;
+  confidence: number;
+}> {
+  const client = getClient();
+  if (!client) {
+    return { estimatedFlOz: 8, cupDescription: "Standard glass", confidence: 0.3 };
+  }
+
+  const response = await client.chat.completions.create({
+    model: getModel(),
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: CUP_VOLUME_PROMPT },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+        ],
+      },
+    ],
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+  });
+
+  const content = response.choices[0]?.message?.content ?? "{}";
+  const parsed = parseJsonResponse<{
+    estimatedFlOz: number;
+    cupDescription: string;
+    confidence: number;
+  }>(content);
+
+  return {
+    estimatedFlOz: Math.max(4, Math.min(64, parsed.estimatedFlOz || 8)),
+    cupDescription: parsed.cupDescription || "My cup",
+    confidence: parsed.confidence ?? 0.5,
   };
 }

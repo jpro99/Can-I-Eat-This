@@ -79,3 +79,13 @@ Return JSON only:
   "confidence": number (0-1)
 }
 Use reasonable USDA-style estimates. Mark confidence lower for vague descriptions.`;
+
+export const CUP_VOLUME_PROMPT = `You are helping estimate how much liquid a drinking cup or glass holds when photographed.
+Look at the cup/glass/mug in the photo. Estimate its typical fill volume in US fluid ounces (fl oz).
+Return JSON only:
+{
+  "estimatedFlOz": number,
+  "cupDescription": string (e.g. "tall kitchen glass", "coffee mug"),
+  "confidence": number (0-1)
+}
+Be conservative. If unsure, estimate 8 fl oz for a standard glass.`;
