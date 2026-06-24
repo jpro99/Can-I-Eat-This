@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { useProfile } from "@/hooks/useProfile";
+import { cmToFeetInches, feetInchesToCm, kgToLbs, lbsToKg } from "@/lib/units/us";
 
 const GOALS = [
   { id: "fat_loss", label: "Fat loss" },
@@ -28,20 +29,38 @@ const ACTIVITY = [
 
 export default function ProfileSetupPage() {
   const router = useRouter();
-  const { update } = useProfile();
+  const { profile, update } = useProfile();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     name: "",
     age: "30",
     sex: "other",
-    heightCm: "170",
-    weightKg: "70",
-    goalWeightKg: "",
+    heightFt: "5",
+    heightIn: "7",
+    weightLbs: "154",
+    goalWeightLbs: "",
     activityLevel: "moderate",
     healthGoal: "maintain",
     strictness: "moderate",
   });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.onboardingComplete) return;
+    const { feet, inches } = cmToFeetInches(profile.heightCm);
+    setForm({
+      name: profile.name,
+      age: String(profile.age),
+      sex: profile.sex,
+      heightFt: String(feet),
+      heightIn: String(inches),
+      weightLbs: String(Math.round(kgToLbs(profile.weightKg))),
+      goalWeightLbs: profile.goalWeightKg ? String(Math.round(kgToLbs(profile.goalWeightKg))) : "",
+      activityLevel: profile.activityLevel,
+      healthGoal: profile.healthGoal,
+      strictness: profile.strictness,
+    });
+  }, [profile]);
 
   const save = async () => {
     setSaving(true);
@@ -49,21 +68,21 @@ export default function ProfileSetupPage() {
       name: form.name,
       age: parseInt(form.age, 10),
       sex: form.sex as "male" | "female" | "other",
-      heightCm: parseFloat(form.heightCm),
-      weightKg: parseFloat(form.weightKg),
-      goalWeightKg: form.goalWeightKg ? parseFloat(form.goalWeightKg) : null,
+      heightCm: feetInchesToCm(parseInt(form.heightFt, 10) || 0, parseFloat(form.heightIn) || 0),
+      weightKg: lbsToKg(parseFloat(form.weightLbs)),
+      goalWeightKg: form.goalWeightLbs ? lbsToKg(parseFloat(form.goalWeightLbs)) : null,
       activityLevel: form.activityLevel as "moderate",
       healthGoal: form.healthGoal as "maintain",
       strictness: form.strictness as "moderate",
       supplements: [{ id: "creatine", name: "Creatine", active: false, requiresHydration: true, hydrationNote: "Drink extra water when taking creatine." }],
       onboardingComplete: true,
     });
-    router.push("/today");
+    router.push(profile?.onboardingComplete ? "/settings" : "/today");
   };
 
   return (
     <AppShell hideNav>
-      <Header title="Your profile" subtitle={`Step ${step + 1} of 3`} backHref={step > 0 ? undefined : "/onboarding"} />
+      <Header title="Your profile" subtitle={`Step ${step + 1} of 3`} backHref={step > 0 ? undefined : profile?.onboardingComplete ? "/settings" : "/onboarding"} />
 
       {step === 0 && (
         <Card className="space-y-4">
@@ -80,11 +99,12 @@ export default function ProfileSetupPage() {
               <option value="other">Other</option>
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input type="number" placeholder="Height (cm)" value={form.heightCm} onChange={(e) => setForm({ ...form, heightCm: e.target.value })} />
-            <Input type="number" placeholder="Weight (kg)" value={form.weightKg} onChange={(e) => setForm({ ...form, weightKg: e.target.value })} />
+          <div className="grid grid-cols-3 gap-3">
+            <Input type="number" placeholder="Height (ft)" value={form.heightFt} onChange={(e) => setForm({ ...form, heightFt: e.target.value })} />
+            <Input type="number" placeholder="Height (in)" value={form.heightIn} onChange={(e) => setForm({ ...form, heightIn: e.target.value })} />
+            <Input type="number" placeholder="Weight (lbs)" value={form.weightLbs} onChange={(e) => setForm({ ...form, weightLbs: e.target.value })} />
           </div>
-          <Input type="number" placeholder="Goal weight (kg, optional)" value={form.goalWeightKg} onChange={(e) => setForm({ ...form, goalWeightKg: e.target.value })} />
+          <Input type="number" placeholder="Goal weight (lbs, optional)" value={form.goalWeightLbs} onChange={(e) => setForm({ ...form, goalWeightLbs: e.target.value })} />
         </Card>
       )}
 

@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateProfile, prisma } from "@/lib/db";
+import { lbsToKg } from "@/lib/units/us";
 
 export async function GET() {
   const profile = await getOrCreateProfile();
@@ -14,14 +15,19 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { weightKg } = await req.json();
+  const body = await req.json();
+  const weightKg =
+    body.weightLbs !== undefined
+      ? lbsToKg(parseFloat(body.weightLbs))
+      : parseFloat(body.weightKg);
+
   const profile = await getOrCreateProfile();
   const entry = await prisma.weightEntry.create({
-    data: { profileId: profile.id, weightKg: parseFloat(weightKg) },
+    data: { profileId: profile.id, weightKg },
   });
   await prisma.userProfile.update({
     where: { id: profile.id },
-    data: { weightKg: parseFloat(weightKg) },
+    data: { weightKg },
   });
   return NextResponse.json(entry);
 }

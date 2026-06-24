@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { DailySummary } from "@/types";
 import { useProfile } from "@/hooks/useProfile";
+import { GLASS_WATER_ML } from "@/lib/units/us";
 import { Mic, ScanBarcode, Clock } from "lucide-react";
 
 export default function TodayPage() {
@@ -69,7 +70,7 @@ export default function TodayPage() {
       {summary && (
         <>
           {summary.insights && (
-            <CoachInsights insights={summary.insights} onLogWater={() => logWater(500)} />
+            <CoachInsights insights={summary.insights} onLogWater={() => logWater(GLASS_WATER_ML)} />
           )}
 
           <WaterTracker

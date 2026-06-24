@@ -1,19 +1,21 @@
 // src/lib/nutrition/water.ts
 
 import type { Supplement, UserProfileData } from "@/types";
+import { flOzToMl, kgToLbs, ML_PER_FL_OZ } from "@/lib/units/us";
 
 export function calculateWaterTarget(profile: Pick<UserProfileData, "weightKg" | "activityLevel" | "targetWaterMl" | "supplements">): number {
   if (profile.targetWaterMl) return profile.targetWaterMl;
 
-  let base = Math.round(profile.weightKg * 35);
+  // US guideline: half body weight in fl oz per day
+  let base = Math.round((kgToLbs(profile.weightKg) / 2) * ML_PER_FL_OZ);
   if (profile.activityLevel === "active" || profile.activityLevel === "very_active") {
-    base += 500;
+    base += flOzToMl(16);
   }
 
   const takesCreatine = profile.supplements.some(
     (s) => s.active && s.name.toLowerCase().includes("creatine")
   );
-  if (takesCreatine) base += 750;
+  if (takesCreatine) base += flOzToMl(24);
 
   return base;
 }
@@ -29,4 +31,12 @@ export function waterStatus(consumedMl: number, targetMl: number) {
   return "depleted" as const;
 }
 
-export const WATER_PRESETS_ML = [250, 500, 750, 1000];
+/** US water quick-log presets (stored as ml internally) */
+export const WATER_PRESETS = [
+  { flOz: 8, ml: Math.round(flOzToMl(8)) },
+  { flOz: 12, ml: Math.round(flOzToMl(12)) },
+  { flOz: 16, ml: Math.round(flOzToMl(16)) },
+  { flOz: 24, ml: Math.round(flOzToMl(24)) },
+] as const;
+
+export const WATER_PRESETS_ML = WATER_PRESETS.map((p) => p.ml);

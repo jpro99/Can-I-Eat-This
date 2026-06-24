@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { DecisionCard } from "@/components/food/DecisionCard";
+import { PlateBreakdown } from "@/components/food/PlateBreakdown";
 import { Button } from "@/components/ui/Button";
 import type { FoodAnalysis, DecisionResult, RestaurantInfo } from "@/types";
 import { SCAN_SESSION_KEY, detectMealType } from "@/lib/utils";
@@ -40,7 +41,7 @@ export default function ScanResultPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        analysis: { ...analysis, mealContext },
+        analysis: { ...analysis, mealContext: { ...mealContext, ...analysis.mealContext } },
         decision,
         mealContext,
         mealType: detectMealType(),
@@ -52,29 +53,23 @@ export default function ScanResultPage() {
 
   if (!analysis || !decision) return null;
 
+  const isPlate = analysis.sourceType === "plate_ai";
+
   return (
     <AppShell hideNav>
-      <Header title="Result" backHref="/scan" />
+      <Header title={isPlate ? "Meal analysis" : "Result"} backHref="/scan" />
       <DecisionCard analysis={analysis} decision={decision} restaurant={restaurant} />
 
       {analysis.items && analysis.items.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <h3 className="font-medium">Detected items — confirm portions</h3>
-          {analysis.items.map((item) => (
-            <div key={item.id} className="rounded-2xl bg-white p-3 text-sm dark:bg-neutral-900">
-              <p className="font-medium">{item.name}</p>
-              <p className="text-neutral-500">
-                {item.portion} · {Math.round(item.calories)} cal · {Math.round(item.confidence * 100)}% confidence
-              </p>
-            </div>
-          ))}
+        <div className="mt-4">
+          <PlateBreakdown items={analysis.items} servings={analysis.servings ?? 1} />
         </div>
       )}
 
       <div className="mt-6 flex gap-3">
         <Link href="/scan/portion" className="flex-1">
           <Button variant="secondary" className="w-full">
-            Edit portion
+            {isPlate ? "Adjust cups & portions" : "Edit portion"}
           </Button>
         </Link>
         <Button className="flex-1" disabled={saving} onClick={save}>

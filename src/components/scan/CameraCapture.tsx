@@ -4,8 +4,8 @@
 
 import { useCamera } from "@/hooks/useCamera";
 import { Button } from "@/components/ui/Button";
-import { Camera } from "lucide-react";
-import { useEffect } from "react";
+import { Camera, ImagePlus } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void;
@@ -14,6 +14,7 @@ interface CameraCaptureProps {
 
 export function CameraCapture({ onCapture, label = "Capture" }: CameraCaptureProps) {
   const { videoRef, active, error, start, stop, capture } = useCamera();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     start();
@@ -25,6 +26,12 @@ export function CameraCapture({ onCapture, label = "Capture" }: CameraCapturePro
       stop();
       onCapture(blob);
     }
+  };
+
+  const handleFile = (file: File | undefined) => {
+    if (!file) return;
+    stop();
+    onCapture(file);
   };
 
   return (
@@ -42,6 +49,22 @@ export function CameraCapture({ onCapture, label = "Capture" }: CameraCapturePro
         <Camera size={22} />
         {label}
       </Button>
+      <Button
+        variant="secondary"
+        size="lg"
+        className="w-full"
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <ImagePlus size={20} />
+        Choose from photos
+      </Button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files?.[0])}
+      />
     </div>
   );
 }

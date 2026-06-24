@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { useProfile } from "@/hooks/useProfile";
 import { ChevronRight, Target, Ban, User } from "lucide-react";
 import { useState } from "react";
+import { formatWeightLbs, lbsToKg } from "@/lib/units/us";
 
 export default function SettingsPage() {
   const { profile, update } = useProfile();
@@ -18,12 +19,13 @@ export default function SettingsPage() {
 
   const logWeight = async () => {
     if (!weight) return;
+    const weightKg = lbsToKg(parseFloat(weight));
     await fetch("/api/weight", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ weightKg: weight }),
+      body: JSON.stringify({ weightLbs: parseFloat(weight) }),
     });
-    await update({ weightKg: parseFloat(weight) });
+    await update({ weightKg });
     setWeight("");
   };
 
@@ -57,9 +59,9 @@ export default function SettingsPage() {
 
       <Card className="space-y-3">
         <h3 className="font-semibold">Log weight</h3>
-        {profile && <p className="text-sm text-neutral-500">Current: {profile.weightKg} kg</p>}
+        {profile && <p className="text-sm text-neutral-500">Current: {formatWeightLbs(profile.weightKg)}</p>}
         <div className="flex gap-2">
-          <Input type="number" placeholder="Weight (kg)" value={weight} onChange={(e) => setWeight(e.target.value)} />
+          <Input type="number" placeholder="Weight (lbs)" value={weight} onChange={(e) => setWeight(e.target.value)} />
           <Button onClick={logWeight}>Save</Button>
         </div>
       </Card>

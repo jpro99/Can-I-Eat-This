@@ -11,7 +11,7 @@ import { Barcode, Camera, UtensilsCrossed, Mic, Search, RotateCcw, Sparkles } fr
 const modes = [
   { href: "/scan/barcode", icon: Barcode, title: "Barcode", desc: "Packaged food — fastest", primary: true },
   { href: "/scan/label", icon: Camera, title: "Label photo", desc: "Nutrition facts & ingredients" },
-  { href: "/scan/plate", icon: UtensilsCrossed, title: "Plate photo", desc: "Restaurant or homemade meals" },
+  { href: "/scan/plate", icon: UtensilsCrossed, title: "Plate photo", desc: "Snap food — auto calories, protein, carbs & more" },
   { href: "/scan/voice", icon: Mic, title: "Voice", desc: "Say what you ate" },
   { href: "/scan/manual", icon: Search, title: "Search", desc: "Find by name" },
   { href: "/scan/recent", icon: RotateCcw, title: "Repeat meal", desc: "One-tap re-log" },

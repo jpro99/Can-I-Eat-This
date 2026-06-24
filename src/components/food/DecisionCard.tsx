@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import type { DecisionResult, FoodAnalysis, RestaurantInfo } from "@/types";
 import { verdictBg, verdictColor, verdictLabel, cn } from "@/lib/utils";
 import { originLabel as getOriginLabel } from "@/lib/nutrition/portions";
+import { MacroGrid } from "@/components/food/MacroGrid";
 import { AlertTriangle, CheckCircle2, XCircle, User } from "lucide-react";
 
 interface DecisionCardProps {
@@ -71,18 +72,8 @@ export function DecisionCard({ analysis, decision, restaurant }: DecisionCardPro
           </div>
         )}
 
-        <div className="mt-5 grid grid-cols-4 gap-2 text-center">
-          {[
-            { label: "Cal", value: Math.round(analysis.nutrition.calories * (analysis.servings ?? 1)) },
-            { label: "Protein", value: `${Math.round(analysis.nutrition.protein * (analysis.servings ?? 1))}g` },
-            { label: "Carbs", value: `${Math.round(analysis.nutrition.carbs * (analysis.servings ?? 1))}g` },
-            { label: "Fat", value: `${Math.round(analysis.nutrition.fats * (analysis.servings ?? 1))}g` },
-          ].map((item) => (
-            <div key={item.label} className="rounded-2xl bg-white/70 p-2 dark:bg-neutral-800/50">
-              <p className="text-xs text-neutral-500">{item.label}</p>
-              <p className="font-semibold">{item.value}</p>
-            </div>
-          ))}
+        <div className="mt-5">
+          <MacroGrid nutrition={analysis.nutrition} servings={analysis.servings ?? 1} />
         </div>
 
         {analysis.isEstimated && (

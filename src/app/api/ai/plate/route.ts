@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Image required" }, { status: 400 });
   }
 
-  const analysis = await analyzePlatePhoto(imageBase64);
+  const analysis = await analyzePlatePhoto(imageBase64, mealContext as MealContext);
   const result = await evaluateAnalysis({ ...analysis, mealContext }, mealContext as MealContext);
   return NextResponse.json(result);
 }

@@ -8,6 +8,7 @@ import {
 import { getCreatineSupplement, waterStatus } from "@/lib/nutrition/water";
 import type { CoachInsight, DailyCoachContext } from "@/types";
 import { PROTEIN_RICH_FOODS } from "@/types";
+import { formatWaterFlOz, GLASS_FL_OZ } from "@/lib/units/us";
 
 export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
   const insights: CoachInsight[] = [];
@@ -45,8 +46,8 @@ export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
       id: "water-critical",
       severity: "critical",
       title: "You haven't had enough water today",
-      body: `${Math.round(waterConsumedMl / 1000 * 10) / 10}L of ${Math.round(waterTargetMl / 1000 * 10) / 10}L goal. Dehydration affects energy, recovery, and appetite.`,
-      action: "Log a glass of water now (+250ml)",
+      body: `${formatWaterFlOz(waterConsumedMl)} of ${formatWaterFlOz(waterTargetMl)} goal. Dehydration affects energy, recovery, and appetite.`,
+      action: `Log a glass of water now (+${GLASS_FL_OZ} fl oz)`,
     });
   } else if (water === "low") {
     insights.push({
@@ -63,7 +64,7 @@ export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
       severity: "critical",
       title: "Creatine + low water — prioritize hydration",
       body: "You're taking creatine today but you're behind on water. Creatine pulls water into muscles — without enough fluids, some people report cramping or kidney strain. This is general wellness guidance, not a diagnosis.",
-      action: `Aim for ${Math.round(waterTargetMl / 1000 * 10) / 10}L total today. Drink 500ml before your next meal.`,
+      action: `Aim for ${formatWaterFlOz(waterTargetMl)} total today. Drink 16 fl oz before your next meal.`,
     });
   }
 
@@ -92,7 +93,7 @@ export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
       id: "on-track",
       severity: "success",
       title: "You're on track today",
-      body: `${Math.round(consumed.calories)} cal · ${Math.round(consumed.protein)}g protein · ${Math.round(waterConsumedMl / 1000 * 10) / 10}L water. Keep logging for sharper insights.`,
+      body: `${Math.round(consumed.calories)} cal · ${Math.round(consumed.protein)}g protein · ${formatWaterFlOz(waterConsumedMl)} water. Keep logging for sharper insights.`,
     });
   }
 

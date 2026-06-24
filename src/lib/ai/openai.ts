@@ -1,8 +1,8 @@
 // src/lib/ai/openai.ts
 
 import OpenAI from "openai";
-import type { FoodAnalysis, PlateItem } from "@/types";
-import { LABEL_OCR_PROMPT, PLATE_ANALYSIS_PROMPT, VOICE_MEAL_PROMPT } from "@/lib/ai/prompts";
+import type { FoodAnalysis, MealContext, PlateItem } from "@/types";
+import { LABEL_OCR_PROMPT, plateAnalysisPromptWithContext, VOICE_MEAL_PROMPT } from "@/lib/ai/prompts";
 
 function getClient() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -82,11 +82,13 @@ export async function parseLabelWithAI(ocrText: string, imageBase64?: string): P
   };
 }
 
-export async function analyzePlatePhoto(imageBase64: string): Promise<FoodAnalysis> {
+export async function analyzePlatePhoto(imageBase64: string, mealContext?: MealContext): Promise<FoodAnalysis> {
   const client = getClient();
   if (!client) {
-    return plateFallback();
+    return plateFallback(mealContext);
   }
+
+  const prompt = plateAnalysisPromptWithContext(mealContext?.mealOrigin, mealContext?.restaurantName);
 
   const response = await client.chat.completions.create({
     model: getModel(),
@@ -94,7 +96,7 @@ export async function analyzePlatePhoto(imageBase64: string): Promise<FoodAnalys
       {
         role: "user",
         content: [
-          { type: "text", text: PLATE_ANALYSIS_PROMPT },
+          { type: "text", text: prompt },
           { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
         ],
       },
@@ -112,24 +114,37 @@ export async function analyzePlatePhoto(imageBase64: string): Promise<FoodAnalys
     totalProtein: number;
     totalCarbs: number;
     totalFats: number;
+    totalFiber?: number;
+    totalSugar?: number;
+    totalSodium?: number;
   }>(content);
+
+  const items = parsed.items ?? [];
+  const sumField = (key: keyof PlateItem) =>
+    items.reduce((acc, i) => acc + (Number(i[key]) || 0), 0);
+
+  const nutrition = {
+    calories: parsed.totalCalories || sumField("calories"),
+    protein: parsed.totalProtein || sumField("protein"),
+    carbs: parsed.totalCarbs || sumField("carbs"),
+    fats: parsed.totalFats || sumField("fats"),
+    fiber: parsed.totalFiber ?? sumField("fiber"),
+    sugar: parsed.totalSugar ?? sumField("sugar"),
+    sodium: parsed.totalSodium ?? sumField("sodium"),
+  };
 
   return {
     foodName: parsed.mealName || "Plate meal",
-    servingSize: `${parsed.items?.length ?? 0} items`,
+    servingSize: items.length > 0 ? `${items.length} items detected` : "1 plate",
     servings: 1,
-    nutrition: {
-      calories: parsed.totalCalories || 0,
-      protein: parsed.totalProtein || 0,
-      carbs: parsed.totalCarbs || 0,
-      fats: parsed.totalFats || 0,
-    },
-    ingredients: (parsed.items ?? []).map((i) => i.name).join(", "),
+    nutrition,
+    ingredients: items.map((i) => i.name).join(", "),
     ingredientFlags: [],
     confidence: parsed.confidence ?? 0.6,
     isEstimated: true,
     sourceType: "plate_ai",
-    items: parsed.items ?? [],
+    items,
+    mealContext,
   };
 }
 
@@ -196,22 +211,75 @@ function parseLabelFallback(ocrText: string): FoodAnalysis {
   };
 }
 
-function plateFallback(): FoodAnalysis {
+function plateFallback(mealContext?: MealContext): FoodAnalysis {
+  const isRestaurant = mealContext?.mealOrigin === "restaurant";
+  const items: PlateItem[] = [
+    {
+      id: "1",
+      name: isRestaurant ? "Grilled protein" : "Chicken breast",
+      portion: isRestaurant ? "6 oz" : "4 oz",
+      calories: isRestaurant ? 280 : 185,
+      protein: isRestaurant ? 42 : 35,
+      carbs: 0,
+      fats: isRestaurant ? 12 : 4,
+      fiber: 0,
+      sugar: 0,
+      sodium: isRestaurant ? 520 : 75,
+      confidence: 0.4,
+    },
+    {
+      id: "2",
+      name: "Rice or potatoes",
+      portion: "1 cup",
+      calories: 200,
+      protein: 4,
+      carbs: 44,
+      fats: 0.5,
+      fiber: 1,
+      sugar: 0,
+      sodium: isRestaurant ? 380 : 10,
+      confidence: 0.4,
+    },
+    {
+      id: "3",
+      name: "Vegetables",
+      portion: "1 cup",
+      calories: 55,
+      protein: 3,
+      carbs: 10,
+      fats: 0.5,
+      fiber: 4,
+      sugar: 4,
+      sodium: isRestaurant ? 290 : 35,
+      confidence: 0.4,
+    },
+  ];
+
+  const nutrition = items.reduce(
+    (acc, i) => ({
+      calories: acc.calories + i.calories,
+      protein: acc.protein + i.protein,
+      carbs: acc.carbs + i.carbs,
+      fats: acc.fats + i.fats,
+      fiber: (acc.fiber ?? 0) + (i.fiber ?? 0),
+      sugar: (acc.sugar ?? 0) + (i.sugar ?? 0),
+      sodium: (acc.sodium ?? 0) + (i.sodium ?? 0),
+    }),
+    { calories: 0, protein: 0, carbs: 0, fats: 0, fiber: 0, sugar: 0, sodium: 0 }
+  );
+
   return {
-    foodName: "Plate meal (demo)",
-    servingSize: "1 plate",
+    foodName: isRestaurant ? "Restaurant plate (demo)" : "Plate meal (demo)",
+    servingSize: "3 items detected",
     servings: 1,
-    nutrition: { calories: 450, protein: 25, carbs: 40, fats: 18 },
-    ingredients: "Mixed plate items",
+    nutrition,
+    ingredients: items.map((i) => i.name).join(", "),
     ingredientFlags: [],
     confidence: 0.4,
     isEstimated: true,
     sourceType: "plate_ai",
-    items: [
-      { id: "1", name: "Protein", portion: "1 serving", calories: 200, protein: 20, carbs: 0, fats: 8, confidence: 0.4 },
-      { id: "2", name: "Carbs", portion: "1 serving", calories: 150, protein: 3, carbs: 30, fats: 2, confidence: 0.4 },
-      { id: "3", name: "Vegetables", portion: "1 cup", calories: 100, protein: 2, carbs: 10, fats: 8, confidence: 0.4 },
-    ],
+    items,
+    mealContext,
   };
 }
 

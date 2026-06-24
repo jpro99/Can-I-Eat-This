@@ -8,9 +8,15 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { MacroGrid } from "@/components/food/MacroGrid";
 import type { FoodAnalysis, DecisionResult, PortionMethod } from "@/types";
 import { SCAN_SESSION_KEY } from "@/lib/utils";
-import { PORTION_OPTIONS, applyPortionMultiplier } from "@/lib/nutrition/portions";
+import {
+  PORTION_GROUPS,
+  applyPortionMultiplier,
+  defaultPortionMethod,
+  scalePlateItems,
+} from "@/lib/nutrition/portions";
 import { getScanContext } from "@/lib/scan/context-storage";
 
 export default function PortionPage() {
@@ -31,27 +37,50 @@ export default function PortionPage() {
     setAnalysis(data.analysis);
     setDecision(data.decision);
     setServings(data.analysis.servings ?? 1);
+    const ctx = data.analysis.mealContext ?? getScanContext();
+    setMethod(defaultPortionMethod(ctx?.mealOrigin));
   }, [router]);
+
+  const previewNutrition = () => {
+    if (!analysis) return null;
+    const divisor = analysis.servings ?? 1;
+    const base = {
+      calories: analysis.nutrition.calories / divisor,
+      protein: analysis.nutrition.protein / divisor,
+      carbs: analysis.nutrition.carbs / divisor,
+      fats: analysis.nutrition.fats / divisor,
+      sodium: (analysis.nutrition.sodium ?? 0) / divisor,
+      sugar: (analysis.nutrition.sugar ?? 0) / divisor,
+      fiber: (analysis.nutrition.fiber ?? 0) / divisor,
+    };
+    return applyPortionMultiplier(base, method, servings);
+  };
 
   const reEvaluate = async () => {
     if (!analysis) return;
     setLoading(true);
+    const divisor = analysis.servings ?? 1;
     const base = {
-      calories: analysis.nutrition.calories / (analysis.servings ?? 1),
-      protein: analysis.nutrition.protein / (analysis.servings ?? 1),
-      carbs: analysis.nutrition.carbs / (analysis.servings ?? 1),
-      fats: analysis.nutrition.fats / (analysis.servings ?? 1),
-      sodium: (analysis.nutrition.sodium ?? 0) / (analysis.servings ?? 1),
-      sugar: (analysis.nutrition.sugar ?? 0) / (analysis.servings ?? 1),
-      fiber: (analysis.nutrition.fiber ?? 0) / (analysis.servings ?? 1),
+      calories: analysis.nutrition.calories / divisor,
+      protein: analysis.nutrition.protein / divisor,
+      carbs: analysis.nutrition.carbs / divisor,
+      fats: analysis.nutrition.fats / divisor,
+      sodium: (analysis.nutrition.sodium ?? 0) / divisor,
+      sugar: (analysis.nutrition.sugar ?? 0) / divisor,
+      fiber: (analysis.nutrition.fiber ?? 0) / divisor,
     };
     const adjusted = applyPortionMultiplier(base, method, servings);
-    const mealContext = { ...getScanContext(), portionMethod: method, servings };
+    const mealContext = { ...getScanContext(), ...analysis.mealContext, portionMethod: method, servings };
+    const scaledItems = analysis.items?.length
+      ? scalePlateItems(analysis.items, method, servings)
+      : undefined;
+
     const updatedAnalysis = {
       ...analysis,
       servings,
       mealContext,
       nutrition: { ...analysis.nutrition, ...adjusted },
+      items: scaledItems ?? analysis.items,
     };
 
     const res = await fetch("/api/evaluate", {
@@ -74,16 +103,27 @@ export default function PortionPage() {
 
   if (!analysis) return null;
 
+  const preview = previewNutrition();
+
   return (
     <AppShell hideNav>
-      <Header title="Confirm portion" subtitle="Accuracy matters — pick what matches your plate" backHref="/scan/result" />
+      <Header title="Adjust portion" subtitle="Cups, oz, restaurant sizes — pick what matches" backHref="/scan/result" />
 
       <Card className="mb-4 space-y-4">
         <p className="font-medium">{analysis.foodName}</p>
-        <div>
-          <p className="mb-2 text-sm text-neutral-500">How did you measure?</p>
+        {preview && (
+          <div>
+            <p className="mb-2 text-sm text-neutral-500">Updated totals</p>
+            <MacroGrid nutrition={preview} servings={1} />
+          </div>
+        )}
+      </Card>
+
+      {PORTION_GROUPS.map((group) => (
+        <Card key={group.title} className="mb-3 space-y-2">
+          <p className="text-sm font-medium text-neutral-500">{group.title}</p>
           <div className="space-y-2">
-            {PORTION_OPTIONS.map((opt) => (
+            {group.options.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
@@ -95,19 +135,23 @@ export default function PortionPage() {
               </button>
             ))}
           </div>
-        </div>
+        </Card>
+      ))}
+
+      <Card className="mb-4">
+        <p className="mb-3 text-sm text-neutral-500">Fine-tune amount</p>
         <div className="flex items-center justify-center gap-6">
           <Button variant="secondary" onClick={() => setServings(Math.max(0.25, servings - 0.25))}>−</Button>
           <div className="text-center">
             <p className="text-3xl font-bold">{servings}</p>
-            <p className="text-xs text-neutral-500">servings</p>
+            <p className="text-xs text-neutral-500">× multiplier</p>
           </div>
           <Button variant="secondary" onClick={() => setServings(servings + 0.25)}>+</Button>
         </div>
       </Card>
 
       <Button className="w-full" size="lg" disabled={loading} onClick={reEvaluate}>
-        {loading ? "Updating advice…" : "Update my advice"}
+        {loading ? "Updating advice…" : "Apply & see result"}
       </Button>
     </AppShell>
   );

@@ -4,7 +4,8 @@
 
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { WATER_PRESETS_ML } from "@/lib/nutrition/water";
+import { WATER_PRESETS } from "@/lib/nutrition/water";
+import { formatWaterFlOz } from "@/lib/units/us";
 import { Droplets } from "lucide-react";
 
 interface WaterTrackerProps {
@@ -24,16 +25,16 @@ export function WaterTracker({ consumedMl, targetMl, onLog }: WaterTrackerProps)
           <h3 className="font-semibold">Water</h3>
         </div>
         <span className="text-sm text-neutral-500">
-          {(consumedMl / 1000).toFixed(1)}L / {(targetMl / 1000).toFixed(1)}L
+          {formatWaterFlOz(consumedMl)} / {formatWaterFlOz(targetMl)}
         </span>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-100">
         <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${pct}%` }} />
       </div>
       <div className="mt-4 grid grid-cols-4 gap-2">
-        {WATER_PRESETS_ML.map((ml) => (
-          <Button key={ml} variant="secondary" size="sm" onClick={() => onLog(ml)}>
-            +{ml}ml
+        {WATER_PRESETS.map(({ flOz, ml }) => (
+          <Button key={flOz} variant="secondary" size="sm" onClick={() => onLog(ml)}>
+            +{flOz} oz
           </Button>
         ))}
       </div>

@@ -6,7 +6,30 @@ export type HealthGoal = "fat_loss" | "maintain" | "muscle_gain" | "clean_eating
 export type Strictness = "strict" | "moderate" | "flexible";
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 export type MealOrigin = "homemade" | "store" | "restaurant";
-export type PortionMethod = "visual_palm" | "visual_fist" | "visual_cup" | "scale" | "label" | "default";
+export type PortionMethod =
+  | "restaurant_small"
+  | "restaurant_regular"
+  | "restaurant_large"
+  | "shared"
+  | "half_plate"
+  | "quarter_cup"
+  | "half_cup"
+  | "cup"
+  | "two_cups"
+  | "oz_3"
+  | "oz_4"
+  | "oz_6"
+  | "oz_8"
+  | "tbsp"
+  | "slice"
+  | "piece"
+  | "visual_palm"
+  | "visual_fist"
+  | "visual_cup"
+  | "visual_thumb"
+  | "scale"
+  | "label"
+  | "default";
 export type SourceType = "barcode" | "label_ocr" | "plate_ai" | "voice" | "manual" | "repeat";
 export type Verdict = "eat" | "caution" | "avoid";
 
@@ -99,6 +122,9 @@ export interface PlateItem {
   protein: number;
   carbs: number;
   fats: number;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
   confidence: number;
 }
 

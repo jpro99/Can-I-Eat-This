@@ -14,9 +14,11 @@ import { Card } from "@/components/ui/Card";
 export default function PlateScanPage() {
   const router = useRouter();
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCapture = async (blob: Blob) => {
     setProcessing(true);
+    setError(null);
     try {
       const imageBase64 = await fileToBase64(blob);
       const mealContext = getScanContext();
@@ -25,27 +27,37 @@ export default function PlateScanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64, mealContext }),
       });
+      if (!res.ok) {
+        setError("Could not analyze this photo. Try again with better lighting.");
+        setProcessing(false);
+        return;
+      }
       const result = await res.json();
       sessionStorage.setItem(SCAN_SESSION_KEY, JSON.stringify(result));
-      router.push("/scan/portion");
+      router.push("/scan/result");
     } catch {
+      setError("Analysis failed. Check your connection and try again.");
       setProcessing(false);
     }
   };
 
   return (
     <AppShell hideNav>
-      <Header title="Plate photo" subtitle="Estimates only — confirm portions next" backHref="/scan" />
-      <Card className="mb-4 border-amber-200 bg-amber-50">
-        <p className="text-sm text-amber-900">
-          Plate photos produce estimates, not exact values. Next you will confirm portion size for better accuracy.
+      <Header title="Snap your meal" subtitle="Photo → calories, protein, carbs & more" backHref="/scan" />
+      <Card className="mb-4 border-blue-200 bg-blue-50">
+        <p className="text-sm text-blue-900">
+          Point at your plate or upload a photo. We identify each food, estimate portions in cups and ounces, and calculate full nutrition. You can fine-tune on the next screen.
         </p>
       </Card>
       {processing ? (
-        <p className="py-20 text-center text-neutral-500">Analyzing your meal…</p>
+        <div className="py-20 text-center">
+          <p className="text-lg font-medium text-neutral-700">Analyzing your meal…</p>
+          <p className="mt-2 text-sm text-neutral-500">Identifying foods and calculating macros</p>
+        </div>
       ) : (
-        <CameraCapture onCapture={handleCapture} label="Capture plate" />
+        <CameraCapture onCapture={handleCapture} label="Take photo" />
       )}
+      {error && <p className="mt-4 text-center text-sm text-rose-600">{error}</p>}
     </AppShell>
   );
 }

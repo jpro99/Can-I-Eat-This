@@ -86,6 +86,6 @@ export const DEFAULT_SUPPLEMENTS: Supplement[] = [
     name: "Creatine",
     active: false,
     requiresHydration: true,
-    hydrationNote: "Drink extra water when taking creatine — aim for 500ml+ above your normal intake.",
+    hydrationNote: "Drink extra water when taking creatine — aim for 16+ fl oz above your normal intake.",
   },
 ];

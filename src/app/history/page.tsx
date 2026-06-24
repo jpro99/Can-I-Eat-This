@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { HistorySummary } from "@/types";
+import { kgToLbs } from "@/lib/units/us";
 
 const ranges = [
   { id: "1", label: "Today" },
@@ -95,7 +96,7 @@ export default function HistoryPage() {
               {summary.weightTrend.map((w) => (
                 <div key={w.date} className="flex justify-between py-2 text-sm">
                   <span>{w.date}</span>
-                  <span className="font-medium">{w.weightKg} kg</span>
+                  <span className="font-medium">{Math.round(kgToLbs(w.weightKg))} lbs</span>
                 </div>
               ))}
             </Card>

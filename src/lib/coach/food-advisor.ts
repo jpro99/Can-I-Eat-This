@@ -7,6 +7,7 @@ import { pickProteinSuggestions } from "@/lib/coach/daily-coach";
 import { scoreToVerdict } from "@/lib/scoring/caveman-score";
 import { calculateCavemanScore } from "@/lib/scoring/caveman-score";
 import { analyzeIngredients } from "@/lib/ingredients/flags";
+import { formatWaterFlOz } from "@/lib/units/us";
 
 interface AdvisorInput {
   analysis: FoodAnalysis;
@@ -54,10 +55,10 @@ export function buildForYouAdvice(input: AdvisorInput): Pick<DecisionResult, "fo
 
   if (waterLow && creatineActive) {
     narrativeParts.push(
-      `You're at ${Math.round(waterConsumedMl / 1000 * 10) / 10}L water and you take creatine — drink at least 500ml before or with this meal. Extra hydration supports kidney function when supplementing creatine (general wellness guidance).`
+      `You're at ${formatWaterFlOz(waterConsumedMl)} water and you take creatine — drink at least 16 fl oz before or with this meal. Extra hydration supports kidney function when supplementing creatine (general wellness guidance).`
     );
     negatives.push("Hydration is low while on creatine");
-    suggestions.push("Log 500ml water now");
+    suggestions.push("Log 16 fl oz of water now");
   } else if (waterLow) {
     narrativeParts.push(`You're behind on water today (${Math.round((waterConsumedMl / waterTargetMl) * 100)}% of goal). Pair this meal with a full glass.`);
   }
