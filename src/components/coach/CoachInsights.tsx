@@ -10,14 +10,15 @@ import { cn } from "@/lib/utils";
 interface CoachInsightsProps {
   insights: CoachInsight[];
   onLogWater?: () => void;
+  isDayStart?: boolean;
 }
 
-export function CoachInsights({ insights, onLogWater }: CoachInsightsProps) {
+export function CoachInsights({ insights, onLogWater, isDayStart }: CoachInsightsProps) {
   if (insights.length === 0) return null;
 
   return (
     <div className="mb-6 space-y-3">
-      <h2 className="text-lg font-semibold">For you today</h2>
+      <h2 className="text-lg font-semibold">{isDayStart ? "Welcome" : "For you today"}</h2>
       {insights.map((insight) => {
         const Icon =
           insight.severity === "critical"
@@ -34,7 +35,9 @@ export function CoachInsights({ insights, onLogWater }: CoachInsightsProps) {
               ? "border-emerald-200 bg-emerald-50"
               : insight.severity === "warning"
                 ? "border-amber-200 bg-amber-50"
-                : "border-neutral-200 bg-white";
+                : insight.id === "day-start"
+                  ? "border-blue-200 bg-blue-50"
+                  : "border-neutral-200 bg-white";
 
         return (
           <Card key={insight.id} className={cn(bg)}>

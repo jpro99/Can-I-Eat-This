@@ -36,6 +36,13 @@ export function formatDateTime(date: Date | string): string {
   });
 }
 
+export function getGreeting(date = new Date()): string {
+  const hour = date.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export function detectMealType(date = new Date()): MealType {
   const hour = date.getHours();
   if (hour >= 5 && hour < 11) return "breakfast";

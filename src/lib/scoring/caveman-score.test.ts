@@ -30,6 +30,15 @@ const baseProfile: UserProfileData = {
   supplements: [],
   avoidGmo: false,
   onboardingComplete: true,
+  dailyRoutines: [],
+  kitchenMemory: {
+    setupComplete: false,
+    pantryItems: [],
+    appliances: [],
+    venueOrders: [],
+    spiceSets: [],
+    mealTemplates: [],
+  },
 };
 
 describe("Caveman Score", () => {

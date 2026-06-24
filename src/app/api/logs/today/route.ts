@@ -14,6 +14,7 @@ import {
 import { calculateWaterTarget } from "@/lib/nutrition/water";
 import { loadDailyCoachContext } from "@/lib/coach/daily-context";
 import { generateDailyInsights } from "@/lib/coach/daily-coach";
+import { generateKitchenPredictions } from "@/lib/kitchen/predictions";
 import { parseJsonArray, startOfDay, endOfDay } from "@/lib/utils";
 
 export async function GET() {
@@ -36,6 +37,11 @@ export async function GET() {
   const flagCount = logs.reduce((acc, l) => acc + parseJsonArray(l.ingredientFlags).length, 0);
   const micronutrientStatus = buildMicronutrientStatus(microConsumed, microTargets);
   const insights = generateDailyInsights(ctx);
+  const kitchenPredictions = generateKitchenPredictions(
+    profile.kitchenMemory,
+    profile.dailyRoutines,
+    logs.map(mapMealLog)
+  );
 
   return NextResponse.json({
     date: now.toISOString().slice(0, 10),
@@ -65,5 +71,6 @@ export async function GET() {
     meals: logs.map(mapMealLog),
     insights,
     micronutrientStatus,
+    kitchenPredictions,
   });
 }

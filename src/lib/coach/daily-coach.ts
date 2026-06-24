@@ -9,11 +9,37 @@ import { getCreatineSupplement, waterStatus } from "@/lib/nutrition/water";
 import type { CoachInsight, DailyCoachContext } from "@/types";
 import { PROTEIN_RICH_FOODS } from "@/types";
 import { formatWaterFlOz, GLASS_FL_OZ } from "@/lib/units/us";
+import { getGreeting } from "@/lib/utils";
 
 export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
   const insights: CoachInsight[] = [];
-  const { profile, consumed, targets, remaining, waterConsumedMl, waterTargetMl, proteinPctOfTarget, hoursLeftInDay } = ctx;
+  const {
+    profile,
+    consumed,
+    targets,
+    remaining,
+    waterConsumedMl,
+    waterTargetMl,
+    proteinPctOfTarget,
+    hoursLeftInDay,
+    mealsLoggedCount,
+  } = ctx;
   const name = profile.name.split(" ")[0] || "You";
+  const hour = new Date().getHours();
+  const isMorning = hour < 12;
+  const isDayStart = mealsLoggedCount === 0 && waterConsumedMl === 0;
+
+  if (isDayStart) {
+    insights.push({
+      id: "day-start",
+      severity: "info",
+      title: `${getGreeting()}, ${name} — let's start`,
+      body: isMorning
+        ? "What have you had to drink or eat so far today? Tap your coffee below, log water, or scan something new."
+        : "What have you had today? Log a quick item or scan your next meal to get started.",
+    });
+    return insights;
+  }
 
   const proteinGap = remaining.protein ?? 0;
   const microStatus = buildMicronutrientStatus(
@@ -23,8 +49,9 @@ export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
   const depleted = getDepletedNutrients(microStatus);
   const creatine = getCreatineSupplement(profile.supplements);
   const water = waterStatus(waterConsumedMl, waterTargetMl);
+  const canNagWater = hour >= 10 || mealsLoggedCount > 0;
 
-  if (proteinPctOfTarget < 0.5 && hoursLeftInDay > 4) {
+  if (mealsLoggedCount > 0 && proteinPctOfTarget < 0.5 && hoursLeftInDay > 4) {
     insights.push({
       id: "protein-behind",
       severity: "warning",
@@ -32,7 +59,7 @@ export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
       body: `You've had ${Math.round(consumed.protein)}g of ${targets.protein}g protein today (${Math.round(proteinPctOfTarget * 100)}%). You still need about ${Math.round(proteinGap)}g.`,
       action: `Look for: ${PROTEIN_RICH_FOODS.slice(0, 3).join(", ")}`,
     });
-  } else if (proteinPctOfTarget >= 0.9) {
+  } else if (proteinPctOfTarget >= 0.9 && mealsLoggedCount > 0) {
     insights.push({
       id: "protein-good",
       severity: "success",
@@ -41,34 +68,34 @@ export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
     });
   }
 
-  if (water === "depleted") {
+  if (canNagWater && water === "depleted") {
     insights.push({
       id: "water-critical",
-      severity: "critical",
-      title: "You haven't had enough water today",
-      body: `${formatWaterFlOz(waterConsumedMl)} of ${formatWaterFlOz(waterTargetMl)} goal. Dehydration affects energy, recovery, and appetite.`,
-      action: `Log a glass of water now (+${GLASS_FL_OZ} fl oz)`,
+      severity: "warning",
+      title: "Water is a little low",
+      body: `${formatWaterFlOz(waterConsumedMl)} of ${formatWaterFlOz(waterTargetMl)} so far. Log what you've had to drink when you get a chance.`,
+      action: `Log a glass of water (+${GLASS_FL_OZ} fl oz)`,
     });
-  } else if (water === "low") {
+  } else if (canNagWater && water === "low") {
     insights.push({
       id: "water-low",
-      severity: "warning",
-      title: "Water intake is low",
-      body: `${Math.round((waterConsumedMl / waterTargetMl) * 100)}% of your daily water goal. Keep sipping.`,
+      severity: "info",
+      title: "Keep sipping",
+      body: `${Math.round((waterConsumedMl / waterTargetMl) * 100)}% of your water goal — you're doing fine, just keep it up.`,
     });
   }
 
-  if (creatine && water !== "good") {
+  if (creatine && canNagWater && water !== "good") {
     insights.push({
       id: "creatine-hydration",
-      severity: "critical",
-      title: "Creatine + low water — prioritize hydration",
-      body: "You're taking creatine today but you're behind on water. Creatine pulls water into muscles — without enough fluids, some people report cramping or kidney strain. This is general wellness guidance, not a diagnosis.",
-      action: `Aim for ${formatWaterFlOz(waterTargetMl)} total today. Drink 16 fl oz before your next meal.`,
+      severity: "warning",
+      title: "Creatine + hydration",
+      body: "You're on creatine today — extra water helps. General wellness tip, not medical advice.",
+      action: `Aim for ${formatWaterFlOz(waterTargetMl)} total today.`,
     });
   }
 
-  if (depleted.length > 0) {
+  if (mealsLoggedCount > 0 && depleted.length > 0) {
     const foodTips = foodSuggestionsForDepletion(depleted);
     insights.push({
       id: "micro-depleted",
@@ -79,7 +106,7 @@ export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
     });
   }
 
-  if ((consumed.sodium ?? 0) > (targets.sodium ?? 2300) * 0.85) {
+  if (mealsLoggedCount > 0 && (consumed.sodium ?? 0) > (targets.sodium ?? 2300) * 0.85) {
     insights.push({
       id: "sodium-high",
       severity: "warning",
@@ -92,8 +119,11 @@ export function generateDailyInsights(ctx: DailyCoachContext): CoachInsight[] {
     insights.push({
       id: "on-track",
       severity: "success",
-      title: "You're on track today",
-      body: `${Math.round(consumed.calories)} cal · ${Math.round(consumed.protein)}g protein · ${formatWaterFlOz(waterConsumedMl)} water. Keep logging for sharper insights.`,
+      title: mealsLoggedCount === 0 ? `${getGreeting()}, ${name}` : "You're on track today",
+      body:
+        mealsLoggedCount === 0
+          ? "Ready when you are — log coffee, water, or your first meal."
+          : `${Math.round(consumed.calories)} cal · ${Math.round(consumed.protein)}g protein · ${formatWaterFlOz(waterConsumedMl)} water. Keep logging for sharper insights.`,
     });
   }
 

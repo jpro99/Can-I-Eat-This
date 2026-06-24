@@ -35,6 +35,8 @@ model UserProfile {
   scoreEatThreshold         Int      @default(80)
   scoreCautionThreshold     Int      @default(55)
   onboardingComplete        Boolean  @default(false)
+  dailyRoutines             String   @default("[]")
+  kitchenMemory             String   @default("{}")
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 

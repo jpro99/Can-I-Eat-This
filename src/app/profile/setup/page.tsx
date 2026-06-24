@@ -77,7 +77,7 @@ export default function ProfileSetupPage() {
       supplements: [{ id: "creatine", name: "Creatine", active: false, requiresHydration: true, hydrationNote: "Drink extra water when taking creatine." }],
       onboardingComplete: true,
     });
-    router.push(profile?.onboardingComplete ? "/settings" : "/today");
+    router.push(profile?.onboardingComplete ? "/kitchen" : "/today");
   };
 
   return (

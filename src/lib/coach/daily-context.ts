@@ -69,6 +69,7 @@ export async function loadDailyCoachContext(profileOverride?: UserProfileData): 
     proteinPctOfTarget: targets.protein > 0 ? consumed.protein / targets.protein : 0,
     hoursLeftInDay,
     flagCount,
+    mealsLoggedCount: logs.length,
   };
 }
 

@@ -34,5 +34,6 @@ export function evaluateFood(analysis: FoodAnalysis, context: DecisionContext): 
     proteinPctOfTarget: 0,
     hoursLeftInDay: 8,
     flagCount: 0,
+    mealsLoggedCount: 0,
   });
 }

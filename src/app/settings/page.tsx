@@ -30,6 +30,8 @@ export default function SettingsPage() {
   };
 
   const links = [
+    { href: "/kitchen", icon: Target, label: "Kitchen Memory (machines & routines)" },
+    { href: "/settings/routines", icon: Target, label: "Daily routines (coffee sliders)" },
     { href: "/settings/goals", icon: Target, label: "Goals & macros" },
     { href: "/settings/avoid", icon: Ban, label: "Avoid list & allergies" },
     { href: "/settings/supplements", icon: Target, label: "Supplements & creatine" },

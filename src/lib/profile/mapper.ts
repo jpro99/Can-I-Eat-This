@@ -1,8 +1,10 @@
 // src/lib/profile/mapper.ts
 
 import type { UserProfile } from "@prisma/client";
-import type { Supplement, UserProfileData } from "@/types";
+import type { Supplement, DailyRoutine, UserProfileData } from "@/types";
 import { parseJsonArray } from "@/lib/utils";
+import { DEFAULT_DAILY_ROUTINES } from "@/lib/routines/defaults";
+import { parseKitchenMemory } from "@/lib/kitchen/defaults";
 
 function parseSupplements(value: string): Supplement[] {
   try {
@@ -10,6 +12,16 @@ function parseSupplements(value: string): Supplement[] {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+function parseDailyRoutines(value: string | undefined | null): DailyRoutine[] {
+  if (!value || value === "[]") return DEFAULT_DAILY_ROUTINES;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_DAILY_ROUTINES;
+  } catch {
+    return DEFAULT_DAILY_ROUTINES;
   }
 }
 
@@ -42,6 +54,8 @@ export function mapProfile(profile: UserProfile): UserProfileData {
     scoreEatThreshold: profile.scoreEatThreshold,
     scoreCautionThreshold: profile.scoreCautionThreshold,
     onboardingComplete: profile.onboardingComplete,
+    dailyRoutines: parseDailyRoutines(profile.dailyRoutines),
+    kitchenMemory: parseKitchenMemory(profile.kitchenMemory),
   };
 }
 
@@ -77,6 +91,8 @@ export function profileToDbFields(data: Partial<UserProfileData>) {
       scoreCautionThreshold: data.scoreCautionThreshold,
     }),
     ...(data.onboardingComplete !== undefined && { onboardingComplete: data.onboardingComplete }),
+    ...(data.dailyRoutines !== undefined && { dailyRoutines: JSON.stringify(data.dailyRoutines) }),
+    ...(data.kitchenMemory !== undefined && { kitchenMemory: JSON.stringify(data.kitchenMemory) }),
   };
 }
 

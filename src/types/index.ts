@@ -30,7 +30,18 @@ export type PortionMethod =
   | "scale"
   | "label"
   | "default";
-export type SourceType = "barcode" | "label_ocr" | "plate_ai" | "voice" | "manual" | "repeat";
+export type SourceType =
+  | "barcode"
+  | "label_ocr"
+  | "plate_ai"
+  | "voice"
+  | "manual"
+  | "repeat"
+  | "routine"
+  | "appliance"
+  | "venue"
+  | "template"
+  | "kitchen_memory";
 export type Verdict = "eat" | "caution" | "avoid";
 
 export interface Micronutrients {
@@ -55,6 +66,172 @@ export interface Supplement {
   active: boolean;
   requiresHydration?: boolean;
   hydrationNote?: string;
+}
+
+/** Slider add-on for a daily routine (cream, milk, hot sauce, etc.) */
+export interface RoutineModifier {
+  id: string;
+  label: string;
+  unit: string;
+  maxUnits: number;
+  caloriesPerUnit: number;
+  proteinPerUnit: number;
+  carbsPerUnit: number;
+  fatsPerUnit: number;
+  sugarPerUnit?: number;
+  sodiumPerUnit?: number;
+}
+
+/** One-tap daily item with saved modifier levels (e.g. morning coffee + cream) */
+export interface DailyRoutine {
+  id: string;
+  name: string;
+  emoji?: string;
+  mealType: MealType;
+  showInMorning: boolean;
+  base: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    sugar?: number;
+    sodium?: number;
+    fiber?: number;
+  };
+  modifiers: RoutineModifier[];
+  /** Slider level 0–100 per modifier id */
+  defaults: Record<string, number>;
+  servingDescription?: string;
+}
+
+// ─── Kitchen Memory ───────────────────────────────────────────────────────────
+
+export type PantryItemType =
+  | "whole_milk"
+  | "skim_milk"
+  | "oat_milk"
+  | "almond_milk"
+  | "cream"
+  | "half_and_half"
+  | "spice"
+  | "sauce"
+  | "other";
+
+export type ApplianceCategory = "super_automatic" | "semi_automatic" | "pod" | "drip";
+
+export interface DispenseChannelSpec {
+  id: string;
+  label: string;
+  mlPerSecond: number;
+  maxSeconds: number;
+  defaultLiquidType: PantryItemType;
+}
+
+export interface ApplianceCatalogModel {
+  id: string;
+  manufacturerId: string;
+  name: string;
+  fullName: string;
+  category: ApplianceCategory;
+  channels: DispenseChannelSpec[];
+  espressoBaseMl?: number;
+  notes?: string;
+}
+
+export interface ApplianceManufacturer {
+  id: string;
+  name: string;
+}
+
+export interface PantryItem {
+  id: string;
+  name: string;
+  type: PantryItemType;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  sugar?: number;
+  sodium?: number;
+  perTsp?: boolean;
+  photoNote?: string;
+}
+
+export interface ConfiguredAppliance {
+  id: string;
+  catalogModelId: string;
+  nickname: string;
+  channelSeconds: Record<string, number>;
+  channelPantryIds: Record<string, string>;
+  channelMlPerSecond?: Record<string, number>;
+  calibrationFactor: number;
+  includeEspresso: boolean;
+  showInMorning: boolean;
+  vesselLabel?: string;
+}
+
+export interface VenueOrderTemplate {
+  id: string;
+  venueId: string;
+  venueName: string;
+  itemName: string;
+  size?: string;
+  customizations?: string;
+  nutrition: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    sugar?: number;
+    sodium?: number;
+    fiber?: number;
+  };
+  showInMorning?: boolean;
+}
+
+export interface SpiceSet {
+  id: string;
+  name: string;
+  pantryItemIds: string[];
+  tspPerMeal: number;
+}
+
+export interface MealTemplate {
+  id: string;
+  name: string;
+  mealType: MealType;
+  nutrition: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    sugar?: number;
+    sodium?: number;
+    fiber?: number;
+  };
+  spiceSetId?: string;
+  ingredients?: string;
+  showAtHours?: number[];
+}
+
+export interface KitchenMemory {
+  setupComplete: boolean;
+  pantryItems: PantryItem[];
+  appliances: ConfiguredAppliance[];
+  venueOrders: VenueOrderTemplate[];
+  spiceSets: SpiceSet[];
+  mealTemplates: MealTemplate[];
+}
+
+export interface KitchenPrediction {
+  id: string;
+  type: "appliance" | "venue" | "template" | "routine";
+  label: string;
+  emoji: string;
+  description: string;
+  confidence: number;
+  sourceId: string;
+  alreadyLoggedToday?: boolean;
 }
 
 export interface NutritionFacts {
@@ -166,6 +343,8 @@ export interface UserProfileData {
   scoreEatThreshold: number;
   scoreCautionThreshold: number;
   onboardingComplete: boolean;
+  dailyRoutines: DailyRoutine[];
+  kitchenMemory: KitchenMemory;
 }
 
 export interface DailyCoachContext {
@@ -178,6 +357,7 @@ export interface DailyCoachContext {
   proteinPctOfTarget: number;
   hoursLeftInDay: number;
   flagCount: number;
+  mealsLoggedCount: number;
 }
 
 export interface CoachInsight {
@@ -209,6 +389,7 @@ export interface DailySummary {
   meals: MealLogItem[];
   insights: CoachInsight[];
   micronutrientStatus: MicronutrientStatus[];
+  kitchenPredictions?: KitchenPrediction[];
 }
 
 export interface MealLogItem {
