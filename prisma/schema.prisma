@@ -44,6 +44,23 @@ model UserProfile {
   weightLogs   WeightEntry[]
   savedMeals   SavedMeal[]
   waterLogs    WaterLog[]
+  activityLogs ActivityLog[]
+}
+
+model ActivityLog {
+  id             String   @id @default(cuid())
+  profileId      String
+  activityType   String   @default("walk")
+  durationMin    Float    @default(0)
+  distanceKm     Float?
+  steps          Int?
+  caloriesBurned Float    @default(0)
+  source         String   @default("manual")
+  notes          String?
+  recordedAt     DateTime @default(now())
+  profile        UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, recordedAt])
 }
 
 model WaterLog {

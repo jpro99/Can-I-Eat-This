@@ -7,7 +7,10 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { ConfiguredAppliance, KitchenMemory, KitchenPrediction } from "@/types";
 import { DEFAULT_KITCHEN_MEMORY } from "@/lib/kitchen/defaults";
+import { findCatalogModel, getDrinkPresets } from "@/lib/kitchen/appliance-catalog";
+import { unverifiedPantryForAppliance } from "@/lib/kitchen/pantry-label";
 import { ApplianceLogSheet } from "@/components/today/ApplianceLogSheet";
+import { useProfile } from "@/hooks/useProfile";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
@@ -24,12 +27,28 @@ export function KitchenPredictions({
   onLogged,
   firstName,
 }: KitchenPredictionsProps) {
+  const { update } = useProfile();
   const kitchenMemory = kmProp ?? DEFAULT_KITCHEN_MEMORY;
   const [applianceSheet, setApplianceSheet] = useState<ConfiguredAppliance | null>(null);
 
   const logPrediction = async (p: KitchenPrediction, channelSeconds?: Record<string, number>) => {
     if (p.type === "appliance") {
-      await fetch("/api/kitchen/log", {
+      const app = kitchenMemory.appliances.find((a) => a.id === p.sourceId);
+      if (app) {
+        const model = findCatalogModel(app.catalogModelId);
+        const missing = unverifiedPantryForAppliance(
+          kitchenMemory,
+          model,
+          channelSeconds ?? app.channelSeconds,
+          app.channelPantryIds,
+          model ? getDrinkPresets(model).find((p) => p.id === app.usualDrinkId) : undefined
+        );
+        if (missing.length > 0) {
+          setApplianceSheet(app);
+          return;
+        }
+      }
+      const res = await fetch("/api/kitchen/log", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -39,6 +58,11 @@ export function KitchenPredictions({
           saveDefaults: !!channelSeconds,
         }),
       });
+      if (res.status === 422) {
+        const app = kitchenMemory.appliances.find((a) => a.id === p.sourceId);
+        if (app) setApplianceSheet(app);
+        return;
+      }
       onLogged();
       return;
     }
@@ -153,6 +177,7 @@ export function KitchenPredictions({
           kitchenMemory={kitchenMemory}
           onClose={() => setApplianceSheet(null)}
           onLogged={onLogged}
+          onPantryUpdated={(next) => void update({ kitchenMemory: next })}
         />
       )}
     </>

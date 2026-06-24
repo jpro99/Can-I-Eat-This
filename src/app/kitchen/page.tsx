@@ -20,14 +20,20 @@ import type {
   SpiceSet,
   VenueOrderTemplate,
 } from "@/types";
-import { findCatalogModel, getManufacturerName } from "@/lib/kitchen/appliance-catalog";
+import { findCatalogModel, getManufacturerName, applyDrinkPreset, getDrinkPresets } from "@/lib/kitchen/appliance-catalog";
 import { findVenueCatalogItem, VENUE_CATALOG } from "@/lib/kitchen/venue-catalog";
-import { defaultNutritionForPantryType, PANTRY_TYPE_LABELS } from "@/lib/kitchen/pantry-nutrition";
+import { PANTRY_TYPE_LABELS } from "@/lib/kitchen/pantry-nutrition";
 import { newId } from "@/lib/kitchen/defaults";
 import { describeApplianceShort } from "@/lib/kitchen/appliance-calculator";
-import { ChevronRight, Coffee, Store, UtensilsCrossed, Leaf } from "lucide-react";
+import { defaultChannelMaxSeconds } from "@/lib/kitchen/appliance-sliders";
+import { ApplianceChannelSliders } from "@/components/kitchen/ApplianceChannelSliders";
+import { PantryVerifyStep } from "@/components/kitchen/PantryVerifyStep";
+import { PantryLabelScanSheet } from "@/components/kitchen/PantryLabelScanSheet";
+import { isPantryVerified } from "@/lib/kitchen/pantry-label";
+import { ChevronRight, Coffee, Store, UtensilsCrossed, Leaf, Camera, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 
 type Tab = "appliance" | "pantry" | "venue" | "template" | "spice";
+type MachineSetupStep = "search" | "drink" | "tune" | "verify";
 
 export default function KitchenPage() {
   const { profile, update } = useProfile();
@@ -40,6 +46,11 @@ export default function KitchenPage() {
   const [channelPantry, setChannelPantry] = useState<Record<string, string>>({});
   const [nickname, setNickname] = useState("");
   const [venueQuery, setVenueQuery] = useState("");
+  const [setupStep, setSetupStep] = useState<MachineSetupStep>("search");
+  const [selectedDrinkId, setSelectedDrinkId] = useState<string | null>(null);
+  const [selectedDrinkLabel, setSelectedDrinkLabel] = useState("");
+  const [pantryScanType, setPantryScanType] = useState<PantryItemType | null>(null);
+  const [editingApplianceId, setEditingApplianceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) setKm(profile.kitchenMemory);
@@ -58,57 +69,103 @@ export default function KitchenPage() {
 
   if (!km) return null;
 
-  const selectModel = (m: ApplianceCatalogModel) => {
-    setSelectedModel(m);
-    setNickname(m.fullName);
-    const secs: Record<string, number> = {};
-    const pant: Record<string, string> = {};
-    for (const ch of m.channels) {
-      secs[ch.id] = ch.id === "cream" ? 4 : ch.id === "milk" ? 6 : 3;
-      const pantry = km.pantryItems.find((p) => p.type === ch.defaultLiquidType);
-      if (pantry) pant[ch.id] = pantry.id;
-    }
-    setChannelSeconds(secs);
-    setChannelPantry(pant);
+  const resetWizard = () => {
+    setSelectedModel(null);
+    setEditingApplianceId(null);
+    setMachineQuery("");
+    setSetupStep("search");
+    setSelectedDrinkId(null);
+    setSelectedDrinkLabel("");
+    setChannelSeconds({});
+    setChannelPantry({});
+    setNickname("");
   };
 
-  const saveAppliance = () => {
+  const startEdit = (app: ConfiguredAppliance) => {
+    const m = findCatalogModel(app.catalogModelId);
+    if (!m) return;
+    setEditingApplianceId(app.id);
+    setSelectedModel(m);
+    setNickname(app.nickname);
+    setChannelSeconds({ ...app.channelSeconds });
+    setChannelPantry({ ...app.channelPantryIds });
+    setSelectedDrinkId(app.usualDrinkId ?? null);
+    setSelectedDrinkLabel(app.usualDrinkLabel ?? "");
+    setSetupStep("tune");
+  };
+
+  const deleteAppliance = (id: string) => {
+    if (!confirm("Remove this machine from Kitchen Memory?")) return;
+    void saveKm({
+      ...km,
+      appliances: km.appliances.filter((a) => a.id !== id),
+    });
+    if (editingApplianceId === id) resetWizard();
+  };
+
+  const selectModel = (m: ApplianceCatalogModel) => {
+    setEditingApplianceId(null);
+    setSelectedModel(m);
+    setNickname(m.fullName);
+    setSetupStep(getDrinkPresets(m).length > 0 ? "drink" : "tune");
+    setSelectedDrinkId(null);
+    setSelectedDrinkLabel("");
+    const secs: Record<string, number> = {};
+    setChannelSeconds(secs);
+    setChannelPantry({});
+  };
+
+  const selectDrink = (drinkId: string, drinkLabel: string) => {
     if (!selectedModel) return;
+    const preset = getDrinkPresets(selectedModel).find((p) => p.id === drinkId);
+    setSelectedDrinkId(drinkId);
+    setSelectedDrinkLabel(drinkLabel);
+    if (preset) {
+      setChannelSeconds(applyDrinkPreset(selectedModel, preset));
+    }
+    setSetupStep("tune");
+  };
+
+  const skipDrinkSelection = () => {
+    setSelectedDrinkId("custom");
+    setSelectedDrinkLabel("Custom");
+    setSetupStep("tune");
+  };
+
+  const saveAppliance = (linkedPantry: Record<string, string> = channelPantry) => {
+    if (!selectedModel) return;
+    const existing = editingApplianceId ? km.appliances.find((a) => a.id === editingApplianceId) : undefined;
     const app: ConfiguredAppliance = {
-      id: newId("app"),
+      id: existing?.id ?? newId("app"),
       catalogModelId: selectedModel.id,
       nickname,
       channelSeconds,
-      channelPantryIds: channelPantry,
-      calibrationFactor: 1,
-      includeEspresso: true,
-      showInMorning: true,
-      vesselLabel: "My mug",
+      channelPantryIds: linkedPantry,
+      channelMaxSeconds: existing?.channelMaxSeconds ?? defaultChannelMaxSeconds(selectedModel),
+      calibrationFactor: existing?.calibrationFactor ?? 1,
+      includeEspresso: existing?.includeEspresso ?? true,
+      showInMorning: existing?.showInMorning ?? true,
+      vesselLabel: existing?.vesselLabel ?? "My mug",
+      usualDrinkId: selectedDrinkId ?? undefined,
+      usualDrinkLabel: selectedDrinkLabel || undefined,
     };
     void saveKm({
       ...km,
       setupComplete: true,
-      appliances: [...km.appliances, app],
+      appliances: existing
+        ? km.appliances.map((a) => (a.id === existing.id ? app : a))
+        : [...km.appliances, app],
     });
-    setSelectedModel(null);
-    setMachineQuery("");
+    resetWizard();
   };
 
-  const addPantry = (type: PantryItemType) => {
-    const n = defaultNutritionForPantryType(type);
-    const item: PantryItem = {
-      id: newId("pantry"),
-      name: PANTRY_TYPE_LABELS[type],
-      type,
-      calories: n.calories,
-      protein: n.protein,
-      carbs: n.carbs,
-      fats: n.fats,
-      sugar: n.sugar,
-      sodium: n.sodium,
-      perTsp: n.perTsp,
-    };
-    void saveKm({ ...km, pantryItems: [...km.pantryItems, item] });
+  const addVerifiedPantry = (fields: Omit<PantryItem, "id">) => {
+    const item: PantryItem = { ...fields, id: newId("pantry"), labelVerified: true };
+    void saveKm({
+      ...km,
+      pantryItems: [...km.pantryItems.filter((p) => !(p.type === item.type && !p.labelVerified)), item],
+    });
+    setPantryScanType(null);
   };
 
   const addVenueFromCatalog = (catalogId: string) => {
@@ -164,7 +221,8 @@ export default function KitchenPage() {
 
       <Card className="mb-4">
         <p className="text-sm text-neutral-600">
-          Tell Caveman about your coffee machine (seconds of milk & cream), pantry, chain orders, and usual homemade meals. We look up manufacturer dispense rates and calibrate to your pours.
+          Tell Caveman about your coffee machine — which drink you make, the seconds on your display, and photograph the
+          actual milk, cream, and products you use. No guessing when you say what&apos;s in your fridge.
         </p>
       </Card>
 
@@ -189,12 +247,35 @@ export default function KitchenPage() {
         <div className="space-y-4">
           {km.appliances.map((a) => {
             const m = findCatalogModel(a.catalogModelId);
+            if (editingApplianceId === a.id && selectedModel) return null;
             return (
               <Card key={a.id}>
-                <p className="font-semibold">{a.nickname}</p>
-                <p className="text-sm text-neutral-500">
-                  {m ? getManufacturerName(m.manufacturerId) : ""} {m?.name} · {describeApplianceShort(a)}
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{a.nickname}</p>
+                    <p className="text-sm text-neutral-500">
+                      {m ? getManufacturerName(m.manufacturerId) : ""} {m?.name} · {describeApplianceShort(a)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(a)}
+                      className="rounded-full p-2 text-neutral-500 hover:bg-neutral-100"
+                      aria-label="Edit machine"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteAppliance(a.id)}
+                      className="rounded-full p-2 text-neutral-500 hover:bg-rose-50 hover:text-rose-600"
+                      aria-label="Delete machine"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
               </Card>
             );
           })}
@@ -214,54 +295,85 @@ export default function KitchenPage() {
                     <p className="font-medium">{m.fullName}</p>
                     <p className="text-xs text-neutral-500">
                       {getManufacturerName(m.manufacturerId)} · {m.channels.map((c) => c.label).join(", ") || "Coffee only"}
+                      {getDrinkPresets(m).length > 0 && ` · ${getDrinkPresets(m).length} drink programs`}
                     </p>
                   </button>
                 ))}
               </div>
             </Card>
-          ) : (
+          ) : setupStep === "drink" ? (
             <Card className="space-y-4">
               <p className="font-semibold">{selectedModel.fullName}</p>
-              {selectedModel.notes && <p className="text-sm text-amber-800 bg-amber-50 rounded-xl p-3">{selectedModel.notes}</p>}
-              <Input placeholder="Nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} />
-              {selectedModel.channels.map((ch) => (
-                <div key={ch.id}>
-                  <div className="mb-1 flex justify-between text-sm">
-                    <span>{ch.label} — default seconds</span>
-                    <span>{channelSeconds[ch.id] ?? 0}s</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={ch.maxSeconds}
-                    step={0.5}
-                    value={channelSeconds[ch.id] ?? 0}
-                    onChange={(e) => setChannelSeconds({ ...channelSeconds, [ch.id]: parseFloat(e.target.value) })}
-                    className="w-full accent-neutral-900"
-                  />
-                  <select
-                    className="mt-2 w-full rounded-xl border border-neutral-200 p-2 text-sm"
-                    value={channelPantry[ch.id] ?? ""}
-                    onChange={(e) => setChannelPantry({ ...channelPantry, [ch.id]: e.target.value })}
-                  >
-                    <option value="">Linked pantry item</option>
-                    {km.pantryItems.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-              <p className="text-xs text-neutral-500">
-                Tip: Run a 3-second cream pour once and adjust until nutrition matches your taste — saved forever.
+              <p className="text-sm text-neutral-700">
+                What drink do you usually make on this machine? We&apos;ll ask for the seconds <em>your</em> display shows — often longer than factory defaults.
               </p>
+              <div className="flex flex-wrap gap-2">
+                {getDrinkPresets(selectedModel).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => selectDrink(p.id, p.label)}
+                    className="rounded-full bg-neutral-100 px-4 py-2 text-sm font-medium hover:bg-neutral-200"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <Button variant="secondary" className="w-full" onClick={skipDrinkSelection}>
+                Custom / other drink
+              </Button>
+              <Button variant="secondary" className="w-full" onClick={() => { resetWizard(); }}>
+                Back
+              </Button>
+            </Card>
+          ) : setupStep === "verify" ? (
+            <Card className="space-y-4">
+              <p className="font-semibold">{selectedModel.fullName} · {selectedDrinkLabel || "Your drink"}</p>
+              <PantryVerifyStep
+                model={selectedModel}
+                channelSeconds={channelSeconds}
+                drinkPreset={getDrinkPresets(selectedModel).find((p) => p.id === selectedDrinkId)}
+                kitchenMemory={km}
+                onKitchenMemoryChange={(next) => void saveKm(next)}
+                onComplete={(linked) => {
+                  setChannelPantry(linked);
+                  saveAppliance(linked);
+                }}
+                onBack={() => setSetupStep("tune")}
+              />
+            </Card>
+          ) : (
+            <Card className="space-y-4">
+              <p className="font-semibold">
+                {editingApplianceId ? "Edit" : "Set up"} {selectedModel.fullName}
+              </p>
+              {selectedDrinkLabel && (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Setting up: <strong>{selectedDrinkLabel}</strong> — slide each bar to match what your machine shows.
+                </p>
+              )}
+              {selectedModel.notes && <p className="text-sm text-neutral-600">{selectedModel.notes}</p>}
+              <Input placeholder="Nickname (e.g. Kitchen Jura)" value={nickname} onChange={(e) => setNickname(e.target.value)} />
+
+              <ApplianceChannelSliders
+                model={selectedModel}
+                channels={selectedModel.channels}
+                seconds={channelSeconds}
+                onChange={setChannelSeconds}
+                mode="setup"
+                drinkLabel={selectedDrinkLabel || "your drink"}
+              />
+
               <div className="flex gap-2">
-                <Button variant="secondary" className="flex-1" onClick={() => setSelectedModel(null)}>
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setSetupStep(getDrinkPresets(selectedModel).length > 0 ? "drink" : "search")}
+                >
                   Back
                 </Button>
-                <Button className="flex-1" onClick={saveAppliance}>
-                  Save machine
+                <Button className="flex-1" onClick={() => setSetupStep("verify")}>
+                  Next — photograph products
                 </Button>
               </div>
             </Card>
@@ -272,23 +384,54 @@ export default function KitchenPage() {
       {tab === "pantry" && (
         <div className="space-y-4">
           <Card>
-            <p className="mb-3 text-sm text-neutral-600">Link what&apos;s in your fridge. Photo notes optional — nutrition defaults are USDA-based.</p>
+            <p className="mb-3 text-sm text-neutral-600">
+              Every product needs a label photo — we read your carton, not a generic database. Tap to scan what&apos;s
+              actually in your fridge.
+            </p>
             <div className="flex flex-wrap gap-2">
               {(["whole_milk", "cream", "half_and_half", "oat_milk", "spice", "sauce"] as PantryItemType[]).map((t) => (
-                <Button key={t} variant="secondary" size="sm" onClick={() => addPantry(t)}>
-                  + {PANTRY_TYPE_LABELS[t]}
+                <Button key={t} variant="secondary" size="sm" onClick={() => setPantryScanType(t)}>
+                  <Camera size={14} />
+                  Scan {PANTRY_TYPE_LABELS[t]}
                 </Button>
               ))}
             </div>
           </Card>
+          {km.pantryItems.length === 0 && (
+            <Card>
+              <p className="text-sm text-neutral-500">No products yet — scan your milk and cream labels to get started.</p>
+            </Card>
+          )}
           {km.pantryItems.map((p) => (
             <Card key={p.id}>
-              <p className="font-medium">{p.name}</p>
-              <p className="text-sm text-neutral-500">
-                {p.perTsp ? "per tsp" : "per 100ml"} · {p.calories} cal
-              </p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-medium">{p.name}</p>
+                  <p className="text-sm text-neutral-500">
+                    {p.perTsp ? "per tsp" : "per 100ml"} · {p.calories} cal
+                    {p.brand ? ` · ${p.brand}` : ""}
+                  </p>
+                </div>
+                {isPantryVerified(p) ? (
+                  <span className="flex items-center gap-1 text-xs text-emerald-700">
+                    <CheckCircle2 size={14} />
+                    Label
+                  </span>
+                ) : (
+                  <Button size="sm" variant="secondary" onClick={() => setPantryScanType(p.type)}>
+                    Scan label
+                  </Button>
+                )}
+              </div>
             </Card>
           ))}
+          {pantryScanType && (
+            <PantryLabelScanSheet
+              type={pantryScanType}
+              onVerified={addVerifiedPantry}
+              onClose={() => setPantryScanType(null)}
+            />
+          )}
         </div>
       )}
 

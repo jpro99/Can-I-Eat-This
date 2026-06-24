@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateProfile, prisma } from "@/lib/db";
 import { mapProfile } from "@/lib/profile/mapper";
 import { calculateApplianceDrink } from "@/lib/kitchen/appliance-calculator";
+import { findCatalogModel, getDrinkPresets } from "@/lib/kitchen/appliance-catalog";
+import { unverifiedPantryForAppliance } from "@/lib/kitchen/pantry-label";
 import { detectMealType } from "@/lib/utils";
 import type { ConfiguredAppliance } from "@/types";
 
@@ -11,12 +13,15 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const profile = mapProfile(await getOrCreateProfile());
   const km = profile.kitchenMemory;
-  const { type, sourceId, channelSeconds, saveDefaults, mealType } = body as {
+  const { type, sourceId, channelSeconds, channelPantryIds, saveDefaults, mealType, usualDrinkId, usualDrinkLabel } = body as {
     type: "appliance" | "venue" | "template";
     sourceId: string;
     channelSeconds?: Record<string, number>;
+    channelPantryIds?: Record<string, string>;
     saveDefaults?: boolean;
     mealType?: string;
+    usualDrinkId?: string;
+    usualDrinkLabel?: string;
   };
 
   if (type === "appliance") {
@@ -26,13 +31,50 @@ export async function POST(req: NextRequest) {
     const effective: ConfiguredAppliance = {
       ...appliance,
       channelSeconds: channelSeconds ?? appliance.channelSeconds,
+      channelPantryIds: channelPantryIds ?? appliance.channelPantryIds,
+      usualDrinkLabel: usualDrinkLabel ?? appliance.usualDrinkLabel,
+      usualDrinkId: usualDrinkId ?? appliance.usualDrinkId,
     };
 
-    if (saveDefaults && channelSeconds) {
+    const catalogModel = findCatalogModel(appliance.catalogModelId);
+    const drinkPreset =
+      catalogModel && appliance.usualDrinkId
+        ? getDrinkPresets(catalogModel).find((p) => p.id === appliance.usualDrinkId)
+        : undefined;
+    const missingLabels = unverifiedPantryForAppliance(
+      km,
+      catalogModel,
+      effective.channelSeconds,
+      effective.channelPantryIds,
+      drinkPreset
+    );
+    if (missingLabels.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Photograph your product labels first — we don't guess nutrition for items you say you use.",
+          missingLabels: missingLabels.map((m) => m.type),
+        },
+        { status: 422 }
+      );
+    }
+
+    if (saveDefaults && (channelSeconds || channelPantryIds || usualDrinkLabel || usualDrinkId)) {
       const updated = {
         ...km,
         appliances: km.appliances.map((a) =>
-          a.id === sourceId ? { ...a, channelSeconds: { ...a.channelSeconds, ...channelSeconds } } : a
+          a.id === sourceId
+            ? {
+                ...a,
+                channelSeconds: channelSeconds
+                  ? { ...a.channelSeconds, ...channelSeconds }
+                  : a.channelSeconds,
+                channelPantryIds: channelPantryIds
+                  ? { ...a.channelPantryIds, ...channelPantryIds }
+                  : a.channelPantryIds,
+                usualDrinkLabel: usualDrinkLabel ?? a.usualDrinkLabel,
+                usualDrinkId: usualDrinkId ?? a.usualDrinkId,
+              }
+            : a
         ),
       };
       await prisma.userProfile.update({
@@ -42,14 +84,14 @@ export async function POST(req: NextRequest) {
     }
 
     const { nutrition, servingDescription, ingredients } = calculateApplianceDrink(effective, km);
-    const model = effective.nickname;
+    const logName = effective.nickname;
 
     const log = await prisma.mealLog.create({
       data: {
         profileId: profile.id,
         mealType: mealType ?? "breakfast",
         sourceType: "appliance",
-        foodName: model,
+        foodName: logName,
         servings: 1,
         servingSize: servingDescription,
         confidence: 0.95,

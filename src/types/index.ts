@@ -125,6 +125,17 @@ export interface DispenseChannelSpec {
   mlPerSecond: number;
   maxSeconds: number;
   defaultLiquidType: PantryItemType;
+  /** Setup / log hint — e.g. "Match the seconds on your Jura display" */
+  setupHint?: string;
+}
+
+/** Built-in drink program on the machine (Flat White, Cappuccino, etc.) */
+export interface MachineDrinkPreset {
+  id: string;
+  label: string;
+  channelSeconds: Record<string, number>;
+  /** Products that must be label-scanned for this drink (e.g. milk + cream in G3 system) */
+  requiredPantryTypes?: PantryItemType[];
 }
 
 export interface ApplianceCatalogModel {
@@ -134,6 +145,7 @@ export interface ApplianceCatalogModel {
   fullName: string;
   category: ApplianceCategory;
   channels: DispenseChannelSpec[];
+  drinkPresets?: MachineDrinkPreset[];
   espressoBaseMl?: number;
   notes?: string;
 }
@@ -155,6 +167,11 @@ export interface PantryItem {
   sodium?: number;
   perTsp?: boolean;
   photoNote?: string;
+  brand?: string;
+  servingSize?: string;
+  /** True only after user photographed the nutrition label — never guess when false */
+  labelVerified?: boolean;
+  labelScannedAt?: string;
 }
 
 export interface ConfiguredAppliance {
@@ -164,10 +181,15 @@ export interface ConfiguredAppliance {
   channelSeconds: Record<string, number>;
   channelPantryIds: Record<string, string>;
   channelMlPerSecond?: Record<string, number>;
+  /** Per-channel slider ceiling (e.g. 60s milk on a tuned Jura) */
+  channelMaxSeconds?: Record<string, number>;
   calibrationFactor: number;
   includeEspresso: boolean;
   showInMorning: boolean;
   vesselLabel?: string;
+  /** Machine drink program the user usually runs (flat_white, cappuccino, …) */
+  usualDrinkId?: string;
+  usualDrinkLabel?: string;
 }
 
 export interface VenueOrderTemplate {
@@ -378,11 +400,30 @@ export interface MicronutrientStatus {
   status: "good" | "low" | "depleted";
 }
 
+export type ActivityType = "walk" | "run" | "hike" | "cycle" | "workout" | "steps" | "other";
+
+export interface ActivityLogItem {
+  id: string;
+  activityType: ActivityType;
+  label: string;
+  durationMin: number;
+  distanceKm?: number;
+  steps?: number;
+  caloriesBurned: number;
+  source: "manual" | "gps" | "steps";
+  notes?: string;
+  recordedAt: string;
+}
+
 export interface DailySummary {
   date: string;
   consumed: NutritionFacts & { micronutrients?: Micronutrients };
   targets: NutritionFacts & { calories: number; micronutrients?: Micronutrients };
   remaining: NutritionFacts & { calories: number };
+  caloriesBurned: number;
+  netCalories: number;
+  effectiveRemainingCalories: number;
+  activities: ActivityLogItem[];
   waterConsumedMl: number;
   waterTargetMl: number;
   flagCount: number;

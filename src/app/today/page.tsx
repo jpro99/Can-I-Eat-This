@@ -15,6 +15,7 @@ import { WaterTracker } from "@/components/coach/WaterTracker";
 import { MicronutrientPanel } from "@/components/coach/MicronutrientPanel";
 import { QuickRoutines } from "@/components/today/QuickRoutines";
 import { KitchenPredictions } from "@/components/today/KitchenPredictions";
+import { ActivityTracker } from "@/components/fitness/ActivityTracker";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { DailySummary } from "@/types";
@@ -87,6 +88,17 @@ export default function TodayPage() {
       )}
 
       {profile && summary && (
+        <ActivityTracker
+          activities={summary.activities ?? []}
+          caloriesBurned={summary.caloriesBurned ?? 0}
+          effectiveRemainingCalories={summary.effectiveRemainingCalories ?? summary.remaining.calories}
+          netCalories={summary.netCalories ?? summary.consumed.calories}
+          weightKg={profile.weightKg}
+          onUpdated={load}
+        />
+      )}
+
+      {profile && summary && (
         <KitchenPredictions
           predictions={summary.kitchenPredictions ?? []}
           kitchenMemory={profile.kitchenMemory}
@@ -128,7 +140,7 @@ export default function TodayPage() {
               <div className="flex items-center justify-around">
                 <ProgressRing
                   value={summary.consumed.calories}
-                  max={summary.targets.calories}
+                  max={summary.targets.calories + (summary.caloriesBurned ?? 0)}
                   label="Calories"
                   color="#171717"
                 />
@@ -149,6 +161,12 @@ export default function TodayPage() {
                   <span className="font-semibold text-emerald-600">{Math.round(summary.consumed.protein)}g</span> protein today
                   {" · "}
                   <span className="font-semibold">{Math.round(summary.remaining.protein ?? 0)}g</span> still needed
+                  {(summary.caloriesBurned ?? 0) > 0 && (
+                    <>
+                      {" · "}
+                      <span className="font-semibold text-sky-600">{summary.caloriesBurned} cal burned</span>
+                    </>
+                  )}
                 </p>
               </div>
               <div className="mt-6 space-y-4">

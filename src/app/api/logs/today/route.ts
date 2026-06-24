@@ -15,6 +15,8 @@ import { calculateWaterTarget } from "@/lib/nutrition/water";
 import { loadDailyCoachContext } from "@/lib/coach/daily-context";
 import { generateDailyInsights } from "@/lib/coach/daily-coach";
 import { generateKitchenPredictions } from "@/lib/kitchen/predictions";
+import { ACTIVITY_TYPE_LABELS } from "@/lib/activity/presets";
+import type { ActivityType } from "@/types";
 import { parseJsonArray, startOfDay, endOfDay } from "@/lib/utils";
 
 export async function GET() {
@@ -33,6 +35,28 @@ export async function GET() {
     orderBy: { timestamp: "desc" },
   });
 
+  const activityRows = await prisma.activityLog.findMany({
+    where: {
+      profileId: profile.id,
+      recordedAt: { gte: startOfDay(now), lte: endOfDay(now) },
+    },
+    orderBy: { recordedAt: "desc" },
+  }).catch(() => [] as Awaited<ReturnType<typeof prisma.activityLog.findMany>>);
+
+  const caloriesBurned = Math.round(activityRows.reduce((s, l) => s + l.caloriesBurned, 0));
+  const activities = activityRows.map((log) => ({
+    id: log.id,
+    activityType: log.activityType as ActivityType,
+    label: ACTIVITY_TYPE_LABELS[log.activityType as ActivityType] ?? log.activityType,
+    durationMin: log.durationMin,
+    distanceKm: log.distanceKm ?? undefined,
+    steps: log.steps ?? undefined,
+    caloriesBurned: Math.round(log.caloriesBurned),
+    source: log.source as "manual" | "gps" | "steps",
+    notes: log.notes ?? undefined,
+    recordedAt: log.recordedAt.toISOString(),
+  }));
+
   const consumed = sumNutrition(logs);
   const microConsumed = sumMicronutrients(logs.map((l) => parseMicronutrients(l.micronutrients)));
   const flagCount = logs.reduce((acc, l) => acc + parseJsonArray(l.ingredientFlags).length, 0);
@@ -43,6 +67,9 @@ export async function GET() {
     profile.dailyRoutines,
     logs.map(mapMealLog)
   );
+
+  const netCalories = Math.round(consumed.calories - caloriesBurned);
+  const effectiveRemainingCalories = targets.calories + caloriesBurned - consumed.calories;
 
   return NextResponse.json({
     date: now.toISOString().slice(0, 10),
@@ -66,6 +93,10 @@ export async function GET() {
       sodium: Math.max((targets.sodium ?? 0) - (consumed.sodium ?? 0), 0),
       sugar: Math.max((targets.sugar ?? 0) - (consumed.sugar ?? 0), 0),
     },
+    caloriesBurned,
+    netCalories,
+    effectiveRemainingCalories,
+    activities,
     waterConsumedMl: ctx.waterConsumedMl,
     waterTargetMl: calculateWaterTarget(profile),
     flagCount,

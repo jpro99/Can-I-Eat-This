@@ -1,19 +1,20 @@
 // src/lib/profile/normalize.ts — safe defaults for cached / partial profiles (client + server)
 
 import { DEFAULT_KITCHEN_MEMORY } from "@/lib/kitchen/defaults";
+import { normalizePantryItem } from "@/lib/kitchen/pantry-label";
 import { DEFAULT_DAILY_ROUTINES } from "@/lib/routines/defaults";
-import type { KitchenMemory, UserProfileData } from "@/types";
+import type { KitchenMemory, PantryItem, UserProfileData } from "@/types";
 
 function ensureKitchenMemory(km: Partial<KitchenMemory> | undefined | null): KitchenMemory {
   if (!km || typeof km !== "object") {
-    return { ...DEFAULT_KITCHEN_MEMORY, pantryItems: [...DEFAULT_KITCHEN_MEMORY.pantryItems] };
+    return { ...DEFAULT_KITCHEN_MEMORY };
   }
+  const pantryItems: PantryItem[] = Array.isArray(km.pantryItems)
+    ? km.pantryItems.map(normalizePantryItem)
+    : [];
   return {
     setupComplete: km.setupComplete ?? false,
-    pantryItems:
-      Array.isArray(km.pantryItems) && km.pantryItems.length > 0
-        ? km.pantryItems
-        : [...DEFAULT_KITCHEN_MEMORY.pantryItems],
+    pantryItems,
     appliances: Array.isArray(km.appliances) ? km.appliances : [],
     venueOrders: Array.isArray(km.venueOrders) ? km.venueOrders : [],
     spiceSets: Array.isArray(km.spiceSets) ? km.spiceSets : [],
