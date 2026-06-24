@@ -3,6 +3,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { normalizeProfile } from "@/lib/profile/normalize";
 import type { UserProfileData } from "@/types";
 
 export function useProfile() {
@@ -14,7 +15,7 @@ export function useProfile() {
     try {
       const res = await fetch("/api/profile");
       if (res.ok) {
-        const data = await res.json();
+        const data = normalizeProfile(await res.json());
         setProfile(data);
         localStorage.setItem("caveman_profile", JSON.stringify(data));
       }
@@ -27,7 +28,7 @@ export function useProfile() {
     const cached = localStorage.getItem("caveman_profile");
     if (cached) {
       try {
-        setProfile(JSON.parse(cached));
+        setProfile(normalizeProfile(JSON.parse(cached)));
       } catch {
         /* ignore */
       }
@@ -42,7 +43,7 @@ export function useProfile() {
       body: JSON.stringify(data),
     });
     if (res.ok) {
-      const updated = await res.json();
+      const updated = normalizeProfile(await res.json());
       setProfile(updated);
       localStorage.setItem("caveman_profile", JSON.stringify(updated));
       return updated;

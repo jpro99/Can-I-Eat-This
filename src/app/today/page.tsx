@@ -26,11 +26,18 @@ import { Mic, ScanBarcode, Clock } from "lucide-react";
 export default function TodayPage() {
   const { profile } = useProfile();
   const [summary, setSummary] = useState<DailySummary | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [recent, setRecent] = useState<{ foodName: string; id: string }[]>([]);
 
   const load = async () => {
+    setLoadError(null);
     const res = await fetch("/api/logs/today");
-    if (res.ok) setSummary(await res.json());
+    if (res.ok) {
+      setSummary(await res.json());
+    } else {
+      const body = await res.json().catch(() => ({}));
+      setLoadError(body.error ?? "Could not load today. Try refreshing.");
+    }
     const logsRes = await fetch("/api/logs");
     if (logsRes.ok) {
       const logs = await logsRes.json();
@@ -70,6 +77,15 @@ export default function TodayPage() {
         subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
       />
 
+      {loadError && (
+        <Card className="mb-4 border-rose-200 bg-rose-50">
+          <p className="text-sm text-rose-800">{loadError}</p>
+          <Button variant="secondary" size="sm" className="mt-3" onClick={load}>
+            Retry
+          </Button>
+        </Card>
+      )}
+
       {profile && summary && (
         <KitchenPredictions
           predictions={summary.kitchenPredictions ?? []}
@@ -81,7 +97,7 @@ export default function TodayPage() {
 
       {profile && (
         <QuickRoutines
-          routines={profile.dailyRoutines}
+          routines={profile.dailyRoutines ?? []}
           onLogged={load}
           onLogWater={() => logWater(GLASS_WATER_ML)}
           firstName={firstName}

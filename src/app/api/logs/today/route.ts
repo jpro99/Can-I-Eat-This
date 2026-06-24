@@ -18,6 +18,7 @@ import { generateKitchenPredictions } from "@/lib/kitchen/predictions";
 import { parseJsonArray, startOfDay, endOfDay } from "@/lib/utils";
 
 export async function GET() {
+  try {
   const profile = mapProfile(await getOrCreateProfile());
   const targets = getEffectiveTargets(profile);
   const microTargets = getMicronutrientTargets(profile);
@@ -73,4 +74,17 @@ export async function GET() {
     micronutrientStatus,
     kitchenPredictions,
   });
+  } catch (error) {
+    console.error("[logs/today GET]", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      {
+        error:
+          msg.includes("kitchenMemory") || msg.includes("column")
+            ? "Database schema is out of date. Run: npm run db:push"
+            : "Failed to load today summary",
+      },
+      { status: 500 }
+    );
+  }
 }

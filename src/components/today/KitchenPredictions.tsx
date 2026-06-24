@@ -6,23 +6,25 @@ import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { ConfiguredAppliance, KitchenMemory, KitchenPrediction } from "@/types";
+import { DEFAULT_KITCHEN_MEMORY } from "@/lib/kitchen/defaults";
 import { ApplianceLogSheet } from "@/components/today/ApplianceLogSheet";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
 interface KitchenPredictionsProps {
   predictions: KitchenPrediction[];
-  kitchenMemory: KitchenMemory;
+  kitchenMemory?: KitchenMemory;
   onLogged: () => void;
   firstName?: string;
 }
 
 export function KitchenPredictions({
   predictions,
-  kitchenMemory,
+  kitchenMemory: kmProp,
   onLogged,
   firstName,
 }: KitchenPredictionsProps) {
+  const kitchenMemory = kmProp ?? DEFAULT_KITCHEN_MEMORY;
   const [applianceSheet, setApplianceSheet] = useState<ConfiguredAppliance | null>(null);
 
   const logPrediction = async (p: KitchenPrediction, channelSeconds?: Record<string, number>) => {

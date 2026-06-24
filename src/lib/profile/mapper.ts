@@ -5,6 +5,7 @@ import type { Supplement, DailyRoutine, UserProfileData } from "@/types";
 import { parseJsonArray } from "@/lib/utils";
 import { DEFAULT_DAILY_ROUTINES } from "@/lib/routines/defaults";
 import { parseKitchenMemory } from "@/lib/kitchen/defaults";
+import { normalizeProfile } from "@/lib/profile/normalize";
 
 function parseSupplements(value: string): Supplement[] {
   try {
@@ -26,7 +27,7 @@ function parseDailyRoutines(value: string | undefined | null): DailyRoutine[] {
 }
 
 export function mapProfile(profile: UserProfile): UserProfileData {
-  return {
+  return normalizeProfile({
     id: profile.id,
     name: profile.name,
     age: profile.age,
@@ -56,7 +57,7 @@ export function mapProfile(profile: UserProfile): UserProfileData {
     onboardingComplete: profile.onboardingComplete,
     dailyRoutines: parseDailyRoutines(profile.dailyRoutines),
     kitchenMemory: parseKitchenMemory(profile.kitchenMemory),
-  };
+  });
 }
 
 export function profileToDbFields(data: Partial<UserProfileData>) {
